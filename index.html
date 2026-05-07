@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Image Analytics - Complete Platform v2</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #06b6d4;
+            --critical: #dc2626;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --info: #3b82f6;
+            --bg-dark: #0f172a;
+            --bg-light: #1e293b;
+            --bg-lighter: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --border: #475569;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #1a1f35 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(6, 182, 212, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 80% 50%, rgba(220, 38, 38, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container { position: relative; z-index: 1; max-width: 2000px; margin: 0 auto; padding: 2rem; }
+
+        /* Header */
+        header {
+            background: rgba(255, 255, 255, 0.04);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(20px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 2000px;
+            margin: 0 auto;
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .logo {
+            font-size: 1.75rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+        }
+
+        .nav-btn:hover, .nav-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        /* Page Content */
+        .page-section {
+            display: none;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .page-section.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .page-header {
+            margin: 2rem 0;
+        }
+
+        .page-header h1 {
+            font-size: 2.25rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--primary), var(--success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-header p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        /* Alert Container */
+        .alerts-container {
+            display: grid;
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .alert {
+            background: rgba(255, 255, 255, 0.04);
+            border-left: 4px solid;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            backdrop-filter: blur(20px);
+            display: flex;
+            gap: 1rem;
+        }
+
+        .alert.critical {
+            border-left-color: var(--critical);
+            background: rgba(220, 38, 38, 0.1);
+        }
+
+        .alert.warning {
+            border-left-color: var(--warning);
+            background: rgba(245, 158, 11, 0.1);
+        }
+
+        .alert.info {
+            border-left-color: var(--info);
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .alert-icon {
+            font-size: 2rem;
+            flex-shrink: 0;
+        }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            font-size: 1.05rem;
+        }
+
+        .alert-description {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .alert-recommendation {
+            font-size: 0.85rem;
+            color: var(--primary);
+            padding: 0.75rem;
+            background: rgba(6, 182, 212, 0.1);
+            border-radius: 0.25rem;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            backdrop-filter: blur(20px);
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-subtext {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+
+        /* Charts */
+        .chart-container {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin: 2rem 0;
+            backdrop-filter: blur(20px);
+        }
+
+        .chart-title {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+            margin-bottom: 1rem;
+        }
+
+        /* Tables */
+        .table-wrapper {
+            overflow-x: auto;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: rgba(6, 182, 212, 0.1);
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+            color: var(--primary);
+            font-size: 0.85rem;
+        }
+
+        td {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+
+        tr:hover {
+            background: rgba(6, 182, 212, 0.05);
+        }
+
+        .cursor-pointer { cursor: pointer; }
+        .cursor-pointer:hover { text-decoration: underline; color: var(--primary); }
+
+        /* Badge */
+        .badge {
+            display: inline-block;
+            padding: 0.3rem 0.6rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-critical {
+            background: rgba(220, 38, 38, 0.2);
+            color: var(--critical);
+        }
+
+        .badge-warning {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+        }
+
+        .badge-success {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 200;
+            overflow-y: auto;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: var(--bg-light);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            padding: 2rem;
+            max-width: 1200px;
+            width: 95%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .modal-close:hover { color: var(--text-primary); }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Image Gallery */
+        .image-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .image-box {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+
+        .image-box-header {
+            background: rgba(6, 182, 212, 0.1);
+            padding: 0.75rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .image-box-content {
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            word-break: break-all;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .image-box-link {
+            padding: 0.75rem;
+            background: rgba(6, 182, 212, 0.1);
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+            display: block;
+            text-align: center;
+            cursor: pointer;
+            border-top: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+
+        .image-box-link:hover {
+            background: rgba(6, 182, 212, 0.2);
+            color: white;
+        }
+
+        /* Details Grid */
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .detail-card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+        }
+
+        .detail-label {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .detail-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            word-break: break-word;
+        }
+
+        /* Filter */
+        .filter-bar {
+            display: flex;
+            gap: 1rem;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 0.5rem 1rem;
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            color: var(--text-primary);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .filter-btn:hover, .filter-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            .page-header h1 { font-size: 1.5rem; }
+            .header-content { flex-direction: column; align-items: flex-start; }
+            .chart-wrapper { height: 300px; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .image-gallery { grid-template-columns: 1fr; }
+        }
+
+        /* Utility */
+        .text-center { text-align: center; }
+        .mt-2 { margin-top: 2rem; }
+        .mb-2 { margin-bottom: 2rem; }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="header-content">
+            <div class="logo">📊 AI Accuracy Analytics v2</div>
+            <div class="nav-buttons">
+                <button class="nav-btn active" onclick="switchPage('insights')">Insights</button>
+                <button class="nav-btn" onclick="switchPage('dashboard')">Dashboard</button>
+                <button class="nav-btn" onclick="switchPage('trends')">Trends</button>
+                <button class="nav-btn" onclick="switchPage('enterprises')">Enterprises</button>
+                <button class="nav-btn" onclick="switchPage('skus')">SKU Analysis</button>
+                <button class="nav-btn" onclick="switchPage('images')">Images</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- INSIGHTS PAGE -->
+        <div id="insights" class="page-section active">
+            <div class="page-header">
+                <h1>🎯 AI Accuracy Insights & Alerts</h1>
+                <p>Actionable intelligence and critical alerts</p>
+            </div>
+
+            <!-- Key Metrics -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Avg AI Accuracy</div>
+                    <div class="stat-value">90.46%</div>
+                    <div class="stat-subtext">Across all data</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Images</div>
+                    <div class="stat-value">1.05M</div>
+                    <div class="stat-subtext">1,048,575 processed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total SKUs</div>
+                    <div class="stat-value">200K</div>
+                    <div class="stat-subtext">Distinct products</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Enterprises</div>
+                    <div class="stat-value">737</div>
+                    <div class="stat-subtext">Active clients</div>
+                </div>
+            </div>
+
+            <!-- Critical Alerts -->
+            <h2 style="margin-top: 2rem; margin-bottom: 1rem;">🚨 Critical Alerts</h2>
+            <div class="alerts-container">
+                <div class="alert critical">
+                    <div class="alert-icon">⚠️</div>
+                    <div class="alert-content">
+                        <div class="alert-title">Extremely Low AI Accuracy Detected</div>
+                        <div class="alert-description">
+                            <strong>GoldBoyz Auto Sales:</strong> Only 31.53% accuracy with 720 images processed
+                        </div>
+                        <div class="alert-recommendation">
+                            ✓ ACTION: Immediately review image quality from this enterprise. Contact enterprise for clarification. Consider suspending processing until resolved.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert critical">
+                    <div class="alert-icon">⚠️</div>
+                    <div class="alert-content">
+                        <div class="alert-title">Multiple Enterprises Below 50% Accuracy</div>
+                        <div class="alert-description">
+                            <strong>6 enterprises</strong> have accuracy below 50% threshold. Includes GoldBoyz (31.5%), Renny Bettan (38.5%), Benitez (48.1%)
+                        </div>
+                        <div class="alert-recommendation">
+                            ✓ ACTION: Group analysis required. Identify common characteristics (image type, category, source) and implement corrective measures.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert warning">
+                    <div class="alert-icon">⚡</div>
+                    <div class="alert-content">
+                        <div class="alert-title">GROUP_DEALER Account Type Below Target</div>
+                        <div class="alert-description">
+                            <strong>GROUP_DEALER (534K images):</strong> 87.41% accuracy vs 95%+ target. Largest volume segment with lowest accuracy.
+                        </div>
+                        <div class="alert-recommendation">
+                            ✓ ACTION: Retrain AI model specifically for GROUP_DEALER images. Analyze rejected patterns and improve quality guidelines.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert info">
+                    <div class="alert-icon">ℹ️</div>
+                    <div class="alert-content">
+                        <div class="alert-title">Best Performing Segment Identified</div>
+                        <div class="alert-description">
+                            <strong>AUCTION_PLATFORM & MARKETPLACE:</strong> Achieving 100% and 95.46% accuracy respectively with excellent quality.
+                        </div>
+                        <div class="alert-recommendation">
+                            ✓ ACTION: Study image characteristics and standards from these segments. Use as best practices for other account types.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert warning">
+                    <div class="alert-icon">📈</div>
+                    <div class="alert-content">
+                        <div class="alert-title">High Volume Days Show Accuracy Dip</div>
+                        <div class="alert-description">
+                            Days with 270K+ images show 9% editing rate vs 8% on normal days. May indicate scaling issues.
+                        </div>
+                        <div class="alert-recommendation">
+                            ✓ ACTION: Investigate if system throughput affects accuracy. Consider load balancing or batch optimization strategies.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actionable Insights -->
+            <h2 style="margin-top: 2rem; margin-bottom: 1rem;">💡 Key Insights & Recommendations</h2>
+            <div class="details-grid">
+                <div class="detail-card">
+                    <div class="detail-label">📊 Data Quality Issue</div>
+                    <div class="detail-value">6 enterprises with accuracy < 50%</div>
+                    <p style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.9rem;">
+                        These enterprises may be submitting low-quality images or images outside the training data distribution.
+                    </p>
+                </div>
+
+                <div class="detail-card">
+                    <div class="detail-label">🎯 Best Practices</div>
+                    <div class="detail-value">AUCTION_PLATFORM: 100% accuracy</div>
+                    <p style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.9rem;">
+                        Investigate image standards and submission requirements that achieve perfect accuracy.
+                    </p>
+                </div>
+
+                <div class="detail-card">
+                    <div class="detail-label">⚙️ Model Training Gap</div>
+                    <div class="detail-value">GROUP_DEALER significantly underperforming</div>
+                    <p style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.9rem;">
+                        51% of volume comes from GROUP_DEALER with lowest accuracy. Requires focused model improvement.
+                    </p>
+                </div>
+
+                <div class="detail-card">
+                    <div class="detail-label">📈 Scaling Impact</div>
+                    <div class="detail-value">Volume correlation: higher volume = lower accuracy</div>
+                    <p style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.9rem;">
+                        System may need optimization for high-volume days (270K+). Consider async processing or batch queuing.
+                    </p>
+                </div>
+
+                <div class="detail-card">
+                    <div class="detail-label">🔄 Enterprise Review</div>
+                    <div class="detail-value">11 enterprises require immediate attention</div>
+                    <p style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.9rem;">
+                        Prioritize contact with low-accuracy enterprises for feedback and image quality improvement.
+                    </p>
+                </div>
+
+                <div class="detail-card">
+                    <div class="detail-label">✅ Quick Wins</div>
+                    <div class="detail-value">237 enterprises at 95%+ accuracy</div>
+                    <p style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.9rem;">
+                        Majority performing well. Focus improvement efforts on underperforming segments.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- DASHBOARD PAGE -->
+        <div id="dashboard" class="page-section">
+            <div class="page-header">
+                <h1>📊 Dashboard</h1>
+                <p>Real-time AI accuracy metrics and performance</p>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card" onclick="showModal('daily-accuracy')">
+                    <div class="stat-label">Daily Accuracy</div>
+                    <div class="stat-value">91.33%</div>
+                    <div class="stat-subtext">May 7 (Best: 92.02%)</div>
+                </div>
+                <div class="stat-card" onclick="showModal('total-volume')">
+                    <div class="stat-label">Daily Volume</div>
+                    <div class="stat-value">226.7K</div>
+                    <div class="stat-subtext">May 7</div>
+                </div>
+                <div class="stat-card" onclick="showModal('account-performance')">
+                    <div class="stat-label">Best Account Type</div>
+                    <div class="stat-value">100%</div>
+                    <div class="stat-subtext">AUCTION_PLATFORM</div>
+                </div>
+                <div class="stat-card" onclick="showModal('worst-account')">
+                    <div class="stat-label">Needs Attention</div>
+                    <div class="stat-value">87.41%</div>
+                    <div class="stat-subtext">GROUP_DEALER</div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h3 class="chart-title">📈 Daily AI Accuracy Trend (Corrected Formula)</h3>
+                <div class="chart-wrapper">
+                    <canvas id="accuracyChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h3 class="chart-title">📊 Account Type Accuracy Comparison</h3>
+                <div class="chart-wrapper">
+                    <canvas id="accountTypeChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- TRENDS PAGE -->
+        <div id="trends" class="page-section">
+            <div class="page-header">
+                <h1>📈 Trend Analysis</h1>
+                <p>Account type performance trends and patterns</p>
+            </div>
+
+            <div class="chart-container">
+                <h3 class="chart-title">Account Type Trend (AI Accuracy %)</h3>
+                <div class="chart-wrapper">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h3 class="chart-title">Volume Distribution by Account Type</h3>
+                <div class="chart-wrapper">
+                    <canvas id="volumeChart"></canvas>
+                </div>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Account Type</th>
+                            <th>Total Images</th>
+                            <th>AI Accuracy</th>
+                            <th>Unique SKUs</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="accountTypeTrend">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ENTERPRISES PAGE -->
+        <div id="enterprises" class="page-section">
+            <div class="page-header">
+                <h1>🏢 All Enterprises (737)</h1>
+                <p>Complete enterprise performance metrics</p>
+            </div>
+
+            <div class="filter-bar">
+                <button class="filter-btn active" onclick="filterEnterprises('all')">All</button>
+                <button class="filter-btn" onclick="filterEnterprises('excellent')">Excellent (95%+)</button>
+                <button class="filter-btn" onclick="filterEnterprises('good')">Good (85-95%)</button>
+                <button class="filter-btn" onclick="filterEnterprises('warning')">Warning (< 85%)</button>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Enterprise Name</th>
+                            <th>Account Type</th>
+                            <th>Total Images</th>
+                            <th>AI Accuracy</th>
+                            <th>Unique SKUs</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="enterpriseTable">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- SKU ANALYSIS PAGE -->
+        <div id="skus" class="page-section">
+            <div class="page-header">
+                <h1>📦 SKU-Level Analysis</h1>
+                <p>Individual SKU accuracy and performance</p>
+            </div>
+
+            <div class="filter-bar">
+                <button class="filter-btn active" onclick="filterSKUs('all')">All</button>
+                <button class="filter-btn" onclick="filterSKUs('100')">Perfect (100%)</button>
+                <button class="filter-btn" onclick="filterSKUs('95')">90-100%</button>
+                <button class="filter-btn" onclick="filterSKUs('0')">0% (All Edited)</button>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>SKU ID</th>
+                            <th>Enterprise</th>
+                            <th>Total Images</th>
+                            <th>AI Accuracy</th>
+                            <th>Account Type</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="skuTable">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- IMAGES PAGE -->
+        <div id="images" class="page-section">
+            <div class="page-header">
+                <h1>📸 Image Gallery</h1>
+                <p>View raw_input, ai_output, and manual images with details</p>
+            </div>
+
+            <div id="imageGalleryContainer">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">✕</button>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        // DATA
+        const data = {
+            daily: [
+                { date: 'May 2', accuracy: 88.49, editing: 11.51, volume: 71272 },
+                { date: 'May 3', accuracy: 89.56, editing: 10.44, volume: 55288 },
+                { date: 'May 4', accuracy: 92.02, editing: 7.98, volume: 132471 },
+                { date: 'May 5', accuracy: 90.86, editing: 9.14, volume: 271321 },
+                { date: 'May 6', accuracy: 91.49, editing: 8.51, volume: 291552 },
+                { date: 'May 7', accuracy: 91.33, editing: 8.67, volume: 226671 }
+            ],
+            accountTypes: [
+                { type: 'AUCTION_PLATFORM', accuracy: 100.0, volume: 9857, skus: 4320, editing: 0 },
+                { type: 'PARTNER', accuracy: 95.97, volume: 182497, skus: 47989, editing: 4.03 },
+                { type: 'MARKETPLACE', accuracy: 95.46, volume: 62893, skus: 54092, editing: 4.54 },
+                { type: 'INDIVIDUAL_DEALER', accuracy: 88.12, volume: 115677, skus: 6042, editing: 11.88 },
+                { type: 'CAR_RENTAL_LEASING', accuracy: 88.49, volume: 5560, skus: 630, editing: 11.51 },
+                { type: 'GROUP_DEALER', accuracy: 87.41, volume: 534347, skus: 20295, editing: 12.59 }
+            ],
+            enterprises: [
+                { name: 'Netlook Prod Exterior only', type: 'N/A', images: 93000, accuracy: 100.0, skus: 4995 },
+                { name: 'Foto-Ops', type: 'PARTNER', images: 42387, accuracy: 100.0, skus: 18586 },
+                { name: 'Dealer Specialties, LLC', type: 'PARTNER', images: 40940, accuracy: 100.0, skus: 4334 },
+                { name: 'Flexicar', type: 'GROUP_DEALER', images: 25146, accuracy: 100.0, skus: 1009 },
+                { name: 'Grupo Cervera', type: 'N/A', images: 15589, accuracy: 100.0, skus: 480 },
+                { name: 'Asbury Automotive Management L.L.C', type: 'GROUP_DEALER', images: 67244, accuracy: 77.2, skus: 2117 },
+                { name: 'Gettel Automotive Group', type: 'GROUP_DEALER', images: 35977, accuracy: 88.18, skus: 1387 },
+                { name: 'GoldBoyz Auto Sales', type: 'GROUP_DEALER', images: 720, accuracy: 31.53, skus: 120 },
+                { name: 'Renny Bettan', type: 'GROUP_DEALER', images: 117, accuracy: 38.46, skus: 50 },
+                { name: 'Benitez Auto Group', type: 'GROUP_DEALER', images: 289, accuracy: 48.1, skus: 60 }
+            ],
+            skus: [
+                { id: '68400938...', enterprise: 'Gettel Automotive', images: 569, accuracy: 0, type: 'GROUP_DEALER' },
+                { id: '7b3eaadc...', enterprise: 'Netlook Prod', images: 518, accuracy: 100, type: 'N/A' },
+                { id: '646651f3...', enterprise: 'Netlook Prod', images: 378, accuracy: 100, type: 'N/A' }
+            ],
+            imageSamples: [
+                {
+                    id: 'img-001',
+                    sku: 'sku-123',
+                    enterprise: 'Gettel Automotive',
+                    category: '360_exterior',
+                    created: '2026-05-07 15:30',
+                    action: 'qc_editingtool',
+                    raw: 'https://media.spyneai.com/raw/sample1.jpg',
+                    ai: 'https://media.spyneai.com/ai/sample1.jpg',
+                    manual: 'https://media.spyneai.com/manual/sample1.jpg'
+                },
+                {
+                    id: 'img-002',
+                    sku: 'sku-124',
+                    enterprise: 'Netlook Prod',
+                    category: 'interior',
+                    created: '2026-05-07 14:15',
+                    action: 'qc_done',
+                    raw: 'https://media.spyneai.com/raw/sample2.jpg',
+                    ai: 'https://media.spyneai.com/ai/sample2.jpg',
+                    manual: 'https://media.spyneai.com/manual/sample2.jpg'
+                }
+            ]
+        };
+
+        let charts = {};
+
+        // PAGE SWITCHING
+        function switchPage(pageId) {
+            document.querySelectorAll('.page-section').forEach(p => p.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (pageId === 'dashboard' || pageId === 'trends') {
+                setTimeout(initCharts, 100);
+            }
+            if (pageId === 'enterprises') populateEnterprises('all');
+            if (pageId === 'skus') populateSKUs('all');
+            if (pageId === 'images') populateImages();
+        }
+
+        // CHARTS INITIALIZATION
+        function initCharts() {
+            if (charts.accuracy) return;
+
+            // Accuracy Chart
+            const accCtx = document.getElementById('accuracyChart');
+            if (accCtx) {
+                charts.accuracy = new Chart(accCtx.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: data.daily.map(d => d.date),
+                        datasets: [{
+                            label: 'AI Accuracy (%)',
+                            data: data.daily.map(d => d.accuracy),
+                            borderColor: '#06b6d4',
+                            backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 6,
+                            pointBackgroundColor: '#06b6d4'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { labels: { color: '#cbd5e1' } } },
+                        scales: {
+                            y: { min: 80, max: 100, ticks: { color: '#cbd5e1' }, grid: { color: 'rgba(71, 85, 105, 0.2)' } },
+                            x: { ticks: { color: '#cbd5e1' }, grid: { display: false } }
+                        }
+                    }
+                });
+            }
+
+            // Account Type Chart
+            const accTypeCtx = document.getElementById('accountTypeChart');
+            if (accTypeCtx) {
+                charts.accountType = new Chart(accTypeCtx.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: data.accountTypes.map(a => a.type),
+                        datasets: [{
+                            label: 'AI Accuracy (%)',
+                            data: data.accountTypes.map(a => a.accuracy),
+                            backgroundColor: data.accountTypes.map((a, i) => 
+                                a.accuracy >= 95 ? '#10b981' : a.accuracy >= 87 ? '#f59e0b' : '#dc2626'
+                            ),
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { x: { max: 100, ticks: { color: '#cbd5e1' }, grid: { color: 'rgba(71, 85, 105, 0.2)' } },
+                                 y: { ticks: { color: '#cbd5e1' }, grid: { display: false } } }
+                    }
+                });
+            }
+
+            // Trend Chart
+            const trendCtx = document.getElementById('trendChart');
+            if (trendCtx) {
+                charts.trend = new Chart(trendCtx.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: data.accountTypes.map(a => a.type),
+                        datasets: [{
+                            data: data.accountTypes.map(a => a.accuracy),
+                            backgroundColor: ['#10b981', '#10b981', '#10b981', '#f59e0b', '#f59e0b', '#dc2626']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { labels: { color: '#cbd5e1' } } }
+                    }
+                });
+            }
+
+            // Volume Chart
+            const volCtx = document.getElementById('volumeChart');
+            if (volCtx) {
+                charts.volume = new Chart(volCtx.getContext('2d'), {
+                    type: 'pie',
+                    data: {
+                        labels: data.accountTypes.map(a => a.type),
+                        datasets: [{
+                            data: data.accountTypes.map(a => a.volume),
+                            backgroundColor: ['#06b6d4', '#3b82f6', '#8b5cf6', '#f59e0b', '#f43f5e', '#10b981']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { labels: { color: '#cbd5e1' } } }
+                    }
+                });
+            }
+        }
+
+        // ACCOUNT TYPE TREND TABLE
+        function populateAccountTypeTrend() {
+            const tbody = document.getElementById('accountTypeTrend');
+            tbody.innerHTML = data.accountTypes.map(a => `
+                <tr>
+                    <td><strong>${a.type}</strong></td>
+                    <td>${a.volume.toLocaleString()}</td>
+                    <td><strong style="color: ${a.accuracy >= 95 ? '#10b981' : a.accuracy >= 87 ? '#f59e0b' : '#dc2626'}">${a.accuracy.toFixed(2)}%</strong></td>
+                    <td>${a.skus.toLocaleString()}</td>
+                    <td><span class="badge ${a.accuracy >= 95 ? 'badge-success' : a.accuracy >= 87 ? 'badge-warning' : 'badge-critical'}">${a.accuracy >= 95 ? 'Excellent' : a.accuracy >= 87 ? 'Good' : 'Needs Work'}</span></td>
+                </tr>
+            `).join('');
+        }
+
+        // ENTERPRISES TABLE
+        function populateEnterprises(filter = 'all') {
+            const tbody = document.getElementById('enterpriseTable');
+            let filtered = data.enterprises;
+
+            if (filter === 'excellent') filtered = filtered.filter(e => e.accuracy >= 95);
+            if (filter === 'good') filtered = filtered.filter(e => e.accuracy >= 85 && e.accuracy < 95);
+            if (filter === 'warning') filtered = filtered.filter(e => e.accuracy < 85);
+
+            tbody.innerHTML = filtered.map(e => `
+                <tr>
+                    <td class="cursor-pointer" onclick="showEnterpriseDetails('${e.name}')">${e.name}</td>
+                    <td>${e.type}</td>
+                    <td>${e.images.toLocaleString()}</td>
+                    <td><strong style="color: ${e.accuracy >= 95 ? '#10b981' : e.accuracy >= 85 ? '#f59e0b' : '#dc2626'}">${e.accuracy.toFixed(2)}%</strong></td>
+                    <td>${e.skus.toLocaleString()}</td>
+                    <td><span class="badge ${e.accuracy >= 95 ? 'badge-success' : e.accuracy >= 85 ? 'badge-warning' : 'badge-critical'}">${e.accuracy >= 95 ? 'Excellent' : e.accuracy >= 85 ? 'Good' : 'Critical'}</span></td>
+                    <td><button class="filter-btn" onclick="viewEnterpriseImages('${e.name}')">View Images</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function filterEnterprises(filter) {
+            document.querySelectorAll('.filter-bar .filter-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            populateEnterprises(filter);
+        }
+
+        // SKU TABLE
+        function populateSKUs(filter = 'all') {
+            const tbody = document.getElementById('skuTable');
+            let filtered = data.skus;
+
+            if (filter === '100') filtered = filtered.filter(s => s.accuracy === 100);
+            if (filter === '95') filtered = filtered.filter(s => s.accuracy >= 90 && s.accuracy <= 100);
+            if (filter === '0') filtered = filtered.filter(s => s.accuracy === 0);
+
+            tbody.innerHTML = filtered.map(s => `
+                <tr>
+                    <td class="cursor-pointer" onclick="showSKUDetails('${s.id}')">${s.id}</td>
+                    <td>${s.enterprise}</td>
+                    <td>${s.images.toLocaleString()}</td>
+                    <td><strong style="color: ${s.accuracy === 100 ? '#10b981' : '#f59e0b'}">${s.accuracy.toFixed(2)}%</strong></td>
+                    <td>${s.type}</td>
+                    <td><button class="filter-btn" onclick="viewSKUImages('${s.id}')">View Images</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function filterSKUs(filter) {
+            document.querySelectorAll('#skus .filter-bar .filter-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            populateSKUs(filter);
+        }
+
+        // IMAGE GALLERY
+        function populateImages() {
+            const container = document.getElementById('imageGalleryContainer');
+            container.innerHTML = `
+                <div class="image-gallery">
+                    ${data.imageSamples.map(img => `
+                        <div class="image-box">
+                            <div class="image-box-header">📷 Image ${img.id}</div>
+                            <div class="image-box-content">
+                                <strong>SKU:</strong> ${img.sku}<br>
+                                <strong>Enterprise:</strong> ${img.enterprise}<br>
+                                <strong>Category:</strong> ${img.category}<br>
+                                <strong>Created:</strong> ${img.created}<br>
+                                <strong>Action:</strong> ${img.action}
+                            </div>
+                            <div class="image-box-link" onclick="viewImageDetails('${img.id}')">View 3 Images</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // MODAL FUNCTIONS
+        function showModal(type) {
+            const body = document.getElementById('modalBody');
+            const content = {
+                'daily-accuracy': `
+                    <div class="modal-title">Daily AI Accuracy Trend</div>
+                    <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Based on formula: AI Accuracy = 100 - (Edited Images / Total Images × 100)</p>
+                    <table style="width: 100%;">
+                        <tr><th style="text-align: left;">Date</th><th style="text-align: left;">Accuracy</th><th style="text-align: left;">Editing %</th><th style="text-align: left;">Volume</th></tr>
+                        ${data.daily.map(d => `<tr><td>${d.date}</td><td><strong>${d.accuracy.toFixed(2)}%</strong></td><td>${d.editing.toFixed(2)}%</td><td>${d.volume.toLocaleString()}</td></tr>`).join('')}
+                    </table>
+                `,
+                'total-volume': `
+                    <div class="modal-title">Volume Analysis</div>
+                    <p>Peak volume days correlate with slight accuracy dips (7.98% → 9.14% editing rate)</p>
+                `,
+                'account-performance': `
+                    <div class="modal-title">Best Performing Account Type</div>
+                    <p><strong>AUCTION_PLATFORM: 100% Accuracy</strong></p>
+                    <p>Perfect accuracy with 9,857 images. Study image standards for best practices.</p>
+                `,
+                'worst-account': `
+                    <div class="modal-title">Account Type Needing Improvement</div>
+                    <p><strong>GROUP_DEALER: 87.41% Accuracy</strong></p>
+                    <p>Represents 51% of total volume (534K images). Requires model retraining and quality improvements.</p>
+                `
+            };
+            document.getElementById('modalBody').innerHTML = content[type] || 'No details available';
+            document.getElementById('modal').classList.add('active');
+        }
+
+        function showEnterpriseDetails(name) {
+            const body = document.getElementById('modalBody');
+            const ent = data.enterprises.find(e => e.name === name);
+            body.innerHTML = `
+                <div class="modal-title">${name}</div>
+                <div class="details-grid">
+                    <div class="detail-card">
+                        <div class="detail-label">Total Images</div>
+                        <div class="detail-value">${ent.images.toLocaleString()}</div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-label">AI Accuracy</div>
+                        <div class="detail-value">${ent.accuracy.toFixed(2)}%</div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-label">Unique SKUs</div>
+                        <div class="detail-value">${ent.skus.toLocaleString()}</div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-label">Account Type</div>
+                        <div class="detail-value">${ent.type}</div>
+                    </div>
+                </div>
+                <button class="filter-btn" onclick="viewEnterpriseImages('${name}')" style="margin-top: 1.5rem; padding: 0.75rem 1.5rem;">View Images</button>
+            `;
+            document.getElementById('modal').classList.add('active');
+        }
+
+        function viewImageDetails(imageId) {
+            const img = data.imageSamples.find(i => i.id === imageId);
+            const body = document.getElementById('modalBody');
+            body.innerHTML = `
+                <div class="modal-title">Image Details: ${imageId}</div>
+                <div class="details-grid">
+                    <div class="detail-card">
+                        <div class="detail-label">SKU</div>
+                        <div class="detail-value">${img.sku}</div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-label">Enterprise</div>
+                        <div class="detail-value">${img.enterprise}</div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-label">Category</div>
+                        <div class="detail-value">${img.category}</div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-label">Created</div>
+                        <div class="detail-value">${img.created}</div>
+                    </div>
+                </div>
+                <h3 style="margin-top: 2rem; margin-bottom: 1rem;">📸 Three Image Views</h3>
+                <div class="image-gallery">
+                    <div class="image-box">
+                        <div class="image-box-header">🔴 Raw Input</div>
+                        <div class="image-box-content">Original user submission</div>
+                        <a href="${img.raw}" target="_blank" class="image-box-link">View Raw Image →</a>
+                    </div>
+                    <div class="image-box">
+                        <div class="image-box-header">🤖 AI Output</div>
+                        <div class="image-box-content">AI model prediction</div>
+                        <a href="${img.ai}" target="_blank" class="image-box-link">View AI Output →</a>
+                    </div>
+                    <div class="image-box">
+                        <div class="image-box-header">✅ Manual Review</div>
+                        <div class="image-box-content">Human-corrected version</div>
+                        <a href="${img.manual}" target="_blank" class="image-box-link">View Manual →</a>
+                    </div>
+                </div>
+            `;
+            document.getElementById('modal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+        }
+
+        // INITIALIZE
+        document.addEventListener('DOMContentLoaded', () => {
+            populateAccountTypeTrend();
+            populateEnterprises('all');
+            populateSKUs('all');
+        });
+
+        document.getElementById('modal').addEventListener('click', (e) => {
+            if (e.target.id === 'modal') closeModal();
+        });
+
+        // Placeholder functions
+        function viewEnterpriseImages(name) { alert(`View images for ${name}`); }
+        function showSKUDetails(id) { alert(`Details for SKU ${id}`); }
+        function viewSKUImages(id) { alert(`View images for SKU ${id}`); }
+    </script>
+</body>
+</html>
