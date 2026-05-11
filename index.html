@@ -96,6 +96,49 @@
         margin-right: 6px;
         box-shadow: 0 0 12px var(--accent-3);
       }
+      header .refresh-bar {
+        margin-top: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 10px;
+      }
+      header .refresh-bar .timer-label {
+        color: var(--ink-faint);
+        letter-spacing: 0.1em;
+      }
+      header .refresh-bar .timer {
+        color: var(--accent);
+        font-variant-numeric: tabular-nums;
+        font-weight: 500;
+        letter-spacing: 0.05em;
+      }
+      header .refresh-bar .refresh-now {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--ink-dim);
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 14px;
+        line-height: 1;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.3s, color 0.15s, border-color 0.15s;
+      }
+      header .refresh-bar .refresh-now:hover {
+        color: var(--accent);
+        border-color: var(--accent);
+      }
+      header .refresh-bar .refresh-now.spinning {
+        transform: rotate(360deg);
+        color: var(--accent);
+      }
 
       .filters {
         background: var(--panel);
@@ -301,6 +344,11 @@
         <div class="meta">
           <span class="dot"></span><span id="status">Connected</span><br />
           <span id="row-count">— rows</span>
+          <div class="refresh-bar">
+            <span class="timer-label">Next refresh in</span>
+            <span class="timer" id="timer">—:—:—</span>
+            <button class="refresh-now" id="refresh-now" title="Refresh now">↻</button>
+          </div>
         </div>
       </header>
 
@@ -392,8 +440,14 @@
       const CSV_FALLBACK_URL =
         "https://metabase.spyne.ai/public/question/8870098d-e121-4caa-9e9f-69c31ce9c50e.csv";
 
+      const REFRESH_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+      const CACHE_KEY = "spyne_dashboard_cache_v1";
+
       let charts = {};
       let lastFilterOptions = null;
+      let lastRefreshAt = 0;       // ms timestamp of the most recent successful refresh
+      let countdownTimer = null;   // interval id for the ticking countdown
+      let autoRefreshTimer = null; // interval id for the hourly auto-refresh
 
       // ============================================================
       // Utilities
@@ -414,6 +468,71 @@
 
       function fmt(n) {
         return new Intl.NumberFormat("en-US").format(n);
+      }
+
+      // ============================================================
+      // Local cache (browser) — keyed by filter combination
+      // ============================================================
+      function cacheKeyFor(params) {
+        return `${CACHE_KEY}:${JSON.stringify(params)}`;
+      }
+      function saveCache(params, data) {
+        try {
+          localStorage.setItem(
+            cacheKeyFor(params),
+            JSON.stringify({ savedAt: Date.now(), data })
+          );
+          // also save the latest "fetched at" so the countdown survives reloads
+          localStorage.setItem(CACHE_KEY + ":lastRefreshAt", String(Date.now()));
+        } catch (e) {
+          // localStorage may be full or unavailable — ignore
+          console.warn("Cache save failed:", e);
+        }
+      }
+      function loadCache(params) {
+        try {
+          const raw = localStorage.getItem(cacheKeyFor(params));
+          if (!raw) return null;
+          const parsed = JSON.parse(raw);
+          if (Date.now() - parsed.savedAt > REFRESH_INTERVAL_MS) return null;
+          return parsed;
+        } catch (e) {
+          return null;
+        }
+      }
+      function getStoredLastRefreshAt() {
+        const v = localStorage.getItem(CACHE_KEY + ":lastRefreshAt");
+        return v ? parseInt(v, 10) : 0;
+      }
+
+      // ============================================================
+      // Countdown / auto-refresh
+      // ============================================================
+      function fmtCountdown(ms) {
+        if (ms < 0) ms = 0;
+        const total = Math.floor(ms / 1000);
+        const h = String(Math.floor(total / 3600)).padStart(2, "0");
+        const m = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
+        const s = String(total % 60).padStart(2, "0");
+        return `${h}:${m}:${s}`;
+      }
+      function updateCountdown() {
+        const el = document.getElementById("timer");
+        if (!el || !lastRefreshAt) return;
+        const remaining = REFRESH_INTERVAL_MS - (Date.now() - lastRefreshAt);
+        el.textContent = fmtCountdown(remaining);
+        if (remaining <= 0) {
+          // trigger a forced refresh
+          lastRefreshAt = Date.now(); // optimistic; will be reset by refresh()
+          refresh(true);
+        }
+      }
+      function startTimers() {
+        if (countdownTimer) clearInterval(countdownTimer);
+        if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+        countdownTimer = setInterval(updateCountdown, 1000);
+        // belt-and-braces: also schedule a hard refresh every hour
+        autoRefreshTimer = setInterval(() => refresh(true), REFRESH_INTERVAL_MS);
       }
 
       // ============================================================
@@ -577,21 +696,22 @@
       // ============================================================
       let cachedCsv = null; // cache the parsed CSV for fallback mode
 
-      async function fetchViaApi(params) {
+      async function fetchViaApi(params, force = false) {
         const qs = new URLSearchParams();
         if (params.from) qs.set("from", params.from);
         if (params.to) qs.set("to", params.to);
         if (params.enterprise) qs.set("enterprise", params.enterprise);
         if (params.account_type) qs.set("account_type", params.account_type);
+        if (force) qs.set("refresh", "1");
         const url = `${API_URL}?${qs.toString()}`;
-        const r = await fetch(url);
+        const r = await fetch(url, force ? { cache: "no-store" } : {});
         if (!r.ok) throw new Error(`API ${r.status}`);
         return r.json();
       }
 
-      async function fetchViaCsv(params) {
-        if (!cachedCsv) {
-          const r = await fetch(CSV_FALLBACK_URL);
+      async function fetchViaCsv(params, force = false) {
+        if (force || !cachedCsv) {
+          const r = await fetch(CSV_FALLBACK_URL, force ? { cache: "no-store" } : {});
           if (!r.ok) throw new Error(`CSV ${r.status}`);
           const text = await r.text();
           cachedCsv = parseCSV(text);
@@ -599,14 +719,14 @@
         return aggregateClient(cachedCsv.records, cachedCsv.headers, params);
       }
 
-      async function fetchData(params) {
+      async function fetchData(params, force = false) {
         // try API first; on network/404, fall back to direct CSV
         try {
-          return await fetchViaApi(params);
+          return await fetchViaApi(params, force);
         } catch (e) {
           console.warn("API unavailable, falling back to direct CSV:", e.message);
           document.getElementById("status").textContent = "Direct CSV mode";
-          return await fetchViaCsv(params);
+          return await fetchViaCsv(params, force);
         }
       }
 
@@ -728,46 +848,80 @@
         };
       }
 
-      async function refresh() {
+      function applyData(data) {
+        populateFilterOptions(data.filters);
+        document.getElementById("total-sku").textContent = fmt(data.totals.sku);
+        document.getElementById("total-image").textContent = fmt(data.totals.image);
+        document.getElementById("total-edited").textContent = fmt(data.totals.edited);
+        document.getElementById("row-count").textContent = `${fmt(data.rowCount)} rows`;
+        buildChart("chart-sku", "SKUs", data.skuByDay, "#ffd166");
+        buildChart("chart-image", "Images", data.imageByDay, "#06d6a0");
+        buildChart("chart-edited", "Edited", data.editedByDay, "#ef476f");
+      }
+
+      async function refresh(force = false) {
+        const params = readFilters();
+        const btn = document.getElementById("refresh-now");
+
+        // 1) instant paint from cache (only if not forcing)
+        if (!force) {
+          const cached = loadCache(params);
+          if (cached) {
+            applyData(cached.data);
+            document.getElementById("status").textContent = "Cached";
+            document.getElementById("last-updated").textContent =
+              "From cache · " + new Date(cached.savedAt).toLocaleString();
+          }
+        }
+
         setLoading(true);
+        if (force && btn) btn.classList.add("spinning");
         try {
-          const params = readFilters();
-          const data = await fetchData(params);
-          populateFilterOptions(data.filters);
+          const data = await fetchData(params, force);
+          applyData(data);
+          saveCache(params, data);
 
-          document.getElementById("total-sku").textContent = fmt(data.totals.sku);
-          document.getElementById("total-image").textContent = fmt(data.totals.image);
-          document.getElementById("total-edited").textContent = fmt(data.totals.edited);
-          document.getElementById("row-count").textContent = `${fmt(data.rowCount)} rows`;
-
-          buildChart("chart-sku", "SKUs", data.skuByDay, "#ffd166");
-          buildChart("chart-image", "Images", data.imageByDay, "#06d6a0");
-          buildChart("chart-edited", "Edited", data.editedByDay, "#ef476f");
-
+          lastRefreshAt = Date.now();
+          document.getElementById("status").textContent = "Connected";
           document.getElementById("last-updated").textContent =
-            "Updated · " + new Date().toLocaleString();
+            "Updated · " + new Date(lastRefreshAt).toLocaleString();
+          updateCountdown();
         } catch (e) {
           console.error(e);
           showToast("Failed to load data: " + e.message);
           document.getElementById("status").textContent = "Error";
         } finally {
           setLoading(false);
+          if (btn) setTimeout(() => btn.classList.remove("spinning"), 600);
         }
       }
 
-      document.getElementById("apply").addEventListener("click", refresh);
+      document.getElementById("apply").addEventListener("click", () => refresh(false));
+      document.getElementById("refresh-now").addEventListener("click", () => refresh(true));
       document.getElementById("reset").addEventListener("click", () => {
         document.getElementById("from").value = "";
         document.getElementById("to").value = "";
         document.getElementById("enterprise").value = "";
         document.getElementById("account_type").value = "";
-        refresh();
+        refresh(false);
       });
       ["from", "to", "enterprise", "account_type"].forEach((id) => {
-        document.getElementById(id).addEventListener("change", refresh);
+        document.getElementById(id).addEventListener("change", () => refresh(false));
       });
 
-      refresh();
+      // Restore the last refresh timestamp so the countdown is accurate across reloads
+      const stored = getStoredLastRefreshAt();
+      if (stored && Date.now() - stored < REFRESH_INTERVAL_MS) {
+        lastRefreshAt = stored;
+      } else {
+        lastRefreshAt = Date.now();
+      }
+
+      startTimers();
+      // Initial load: if we have a fresh cache (< 1h old), the next refresh is gentle;
+      // otherwise force a fetch so the user sees fresh data immediately.
+      const shouldForce = !stored || Date.now() - stored >= REFRESH_INTERVAL_MS;
+      refresh(shouldForce);
     </script>
   </body>
 </html>
