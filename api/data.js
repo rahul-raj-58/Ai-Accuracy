@@ -1,387 +1,249 @@
-// api.js — Vercel Serverless Function
-// Place this file at: /api/data.js  (so it's reachable at https://<your-app>.vercel.app/api/data)
+// /api/metrics  — Vercel serverless function
+// Fetches CSV from the Metabase public link, parses it, applies filters,
+// returns distinct sku_id count, image_id count, and edited image count.
 //
-// Fetches the public Metabase CSV, parses it, applies filters (date range,
-// enterprise name, account_type), and returns three aggregations:
-//   1) distinct SKU count per day
-//   2) distinct image count per day
-//   3) edited-image count per day (rows where image_action is not null/empty)
+// Query params (all optional):
+//   from           ISO date (inclusive)        e.g. 2025-05-01
+//   to             ISO date (inclusive)        e.g. 2025-05-11
+//   enterprise     comma-separated list of enterprise_name values
+//   account_type   comma-separated list of account_type values
+//   refresh        "1" to bypass the 1-hour server cache
 //
-// It also returns the unique filter option lists so the UI can populate dropdowns.
+// Response: { metrics, filterOptions, lastFetched, rowsConsidered, fromCache }
 
 const METABASE_CSV_URL =
-  "https://metabase.spyne.ai/public/question/8870098d-e121-4caa-9e9f-69c31ce9c50e.csv";
+  'https://metabase.spyne.ai/public/question/8870098d-e121-4caa-9e9f-69c31ce9c50e.csv';
 
-// fetch polyfill: global fetch is available in Node 18+, but some Vercel
-// projects still run on older runtimes. Fall back to https module if needed.
-const _fetch =
-  typeof fetch === "function"
-    ? fetch
-    : async function (url) {
-        const https = require("https");
-        const { URL } = require("url");
-        return new Promise((resolve, reject) => {
-          const u = new URL(url);
-          const req = https.get(
-            { hostname: u.hostname, path: u.pathname + u.search, headers: { "User-Agent": "vercel-dashboard" } },
-            (res) => {
-              if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-                _fetch(res.headers.location).then(resolve, reject);
-                return;
-              }
-              const chunks = [];
-              res.on("data", (c) => chunks.push(c));
-              res.on("end", () => {
-                const body = Buffer.concat(chunks).toString("utf8");
-                resolve({
-                  ok: res.statusCode >= 200 && res.statusCode < 300,
-                  status: res.statusCode,
-                  statusText: res.statusMessage || "",
-                  text: async () => body,
-                });
-              });
-            }
-          );
-          req.on("error", reject);
-          req.setTimeout(20000, () => req.destroy(new Error("Metabase fetch timeout")));
-        });
-      };
+// ---------- In-memory cache (per warm lambda) ----------
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+let cache = { fetchedAt: 0, rows: null, headers: null };
 
-// ---------- tiny CSV parser (handles quoted fields, commas, escaped quotes) ----------
+// ---------- CSV parsing (RFC 4180-ish, handles quotes + commas in fields) ----------
 function parseCSV(text) {
   const rows = [];
   let cur = [];
-  let field = "";
+  let field = '';
   let inQuotes = false;
-
   for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-
+    const ch = text[i];
     if (inQuotes) {
-      if (c === '"') {
-        if (text[i + 1] === '"') {
-          field += '"';
-          i++;
-        } else {
-          inQuotes = false;
-        }
+      if (ch === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else { inQuotes = false; }
       } else {
-        field += c;
+        field += ch;
       }
     } else {
-      if (c === '"') {
+      if (ch === '"') {
         inQuotes = true;
-      } else if (c === ",") {
-        cur.push(field);
-        field = "";
-      } else if (c === "\n") {
-        cur.push(field);
-        rows.push(cur);
-        cur = [];
-        field = "";
-      } else if (c === "\r") {
-        // ignore — handled with \n
+      } else if (ch === ',') {
+        cur.push(field); field = '';
+      } else if (ch === '\n') {
+        cur.push(field); rows.push(cur); cur = []; field = '';
+      } else if (ch === '\r') {
+        // skip; \n handles row break
       } else {
-        field += c;
+        field += ch;
       }
     }
   }
-  // last field
+  // last field/row
   if (field.length > 0 || cur.length > 0) {
     cur.push(field);
     rows.push(cur);
   }
-
-  if (rows.length === 0) return { headers: [], records: [] };
-
-  const headers = rows[0].map((h) => h.trim());
-  const records = rows
-    .slice(1)
-    .filter((r) => r.length > 1 || (r.length === 1 && r[0].trim() !== ""))
-    .map((r) => {
+  if (rows.length === 0) return { headers: [], data: [] };
+  const headers = rows[0].map(h => h.trim());
+  const data = rows.slice(1)
+    .filter(r => r.length > 1 || (r.length === 1 && r[0] !== ''))
+    .map(r => {
       const obj = {};
-      headers.forEach((h, idx) => {
-        obj[h] = r[idx] !== undefined ? r[idx] : "";
-      });
+      headers.forEach((h, idx) => { obj[h] = r[idx] !== undefined ? r[idx] : ''; });
       return obj;
     });
-
-  return { headers, records };
+  return { headers, data };
 }
 
-// ---------- helpers ----------
-// Try to find the column name that matches a logical field, regardless of casing
-function findCol(headers, candidates) {
-  const lower = headers.map((h) => h.toLowerCase());
-  for (const cand of candidates) {
-    const idx = lower.indexOf(cand.toLowerCase());
-    if (idx !== -1) return headers[idx];
-  }
-  // partial match fallback
-  for (const cand of candidates) {
-    const idx = lower.findIndex((h) => h.includes(cand.toLowerCase()));
-    if (idx !== -1) return headers[idx];
+// ---------- Helpers ----------
+function isBlank(v) {
+  if (v === null || v === undefined) return true;
+  const s = String(v).trim().toLowerCase();
+  return s === '' || s === 'null' || s === 'na' || s === 'n/a';
+}
+
+function parseDate(v) {
+  if (isBlank(v)) return null;
+  // Metabase typically exports "YYYY-MM-DD HH:mm:ss" or ISO.
+  const s = String(v).trim().replace(' ', 'T');
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function findHeader(headers, candidates) {
+  // Case-insensitive header resolver — handles dots/underscores variations
+  const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const map = {};
+  headers.forEach(h => { map[norm(h)] = h; });
+  for (const c of candidates) {
+    const key = norm(c);
+    if (map[key]) return map[key];
   }
   return null;
 }
 
-// Normalize any date-ish value to YYYY-MM-DD; return null if unparseable
-function toDayKey(v) {
-  if (!v) return null;
-  const s = String(v).trim();
-  if (!s) return null;
-  // common case: already starts with YYYY-MM-DD
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
-  const d = new Date(s);
-  if (isNaN(d.getTime())) return null;
-  const y = d.getUTCFullYear();
-  const mo = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const da = String(d.getUTCDate()).padStart(2, "0");
-  return `${y}-${mo}-${da}`;
+async function fetchCSV() {
+  const res = await fetch(METABASE_CSV_URL, {
+    headers: { 'Accept': 'text/csv' },
+  });
+  if (!res.ok) throw new Error(`Metabase fetch failed: ${res.status} ${res.statusText}`);
+  const text = await res.text();
+  return parseCSV(text);
 }
 
-function isNonEmpty(v) {
-  if (v === null || v === undefined) return false;
-  const s = String(v).trim().toLowerCase();
-  return s !== "" && s !== "null" && s !== "na" && s !== "n/a";
-}
-
-// ---------- in-memory cache (per warm serverless instance) ----------
-// We cache the *parsed* CSV for 1 hour. The CDN cache on top of this (set
-// via Cache-Control below) is the real workhorse — this just avoids
-// re-parsing inside a single warm container.
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
-let csvCache = null; // { fetchedAt: number, headers: [], records: [] }
-
-async function getCsv(forceRefresh = false) {
+async function getRows(forceRefresh) {
   const now = Date.now();
-  if (!forceRefresh && csvCache && now - csvCache.fetchedAt < CACHE_TTL_MS) {
-    return { ...csvCache, cached: true };
+  if (!forceRefresh && cache.rows && (now - cache.fetchedAt) < CACHE_TTL_MS) {
+    return { ...cache, fromCache: true };
   }
-  const resp = await _fetch(METABASE_CSV_URL);
-  if (!resp.ok) {
-    // serve stale on failure if we have it
-    if (csvCache) return { ...csvCache, cached: true, stale: true };
-    throw new Error(`Metabase fetch failed: ${resp.status} ${resp.statusText}`);
-  }
-  const csvText = await resp.text();
-  const parsed = parseCSV(csvText);
-  csvCache = { fetchedAt: now, ...parsed };
-  return { ...csvCache, cached: false };
+  const { headers, data } = await fetchCSV();
+  cache = { fetchedAt: now, rows: data, headers };
+  return { ...cache, fromCache: false };
 }
 
-// ---------- main handler ----------
-module.exports = async function handler(req, res) {
-  // CORS so the UI (even on a different origin) can call this
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  if (req.method === "OPTIONS") {
-    res.status(200).end();
-    return;
-  }
-
-  // Diagnostics endpoint: ?diag=1 returns environment info without doing real work.
-  // Useful for sanity-checking the function even when CSV parsing fails.
-  if (req.query && (req.query.diag === "1" || req.query.diag === "true")) {
-    try {
-      const probe = await _fetch(METABASE_CSV_URL).catch((e) => ({
-        ok: false, status: "fetch-threw", statusText: String(e && e.message ? e.message : e),
-      }));
-      res.status(200).json({
-        ok: true,
-        nodeVersion: process.version,
-        hasFetch: typeof fetch === "function",
-        metabaseProbe: {
-          ok: probe.ok,
-          status: probe.status,
-          statusText: probe.statusText || null,
-        },
-        cacheLoaded: !!csvCache,
-        cacheAgeSeconds: csvCache ? Math.floor((Date.now() - csvCache.fetchedAt) / 1000) : null,
-      });
-    } catch (e) {
-      res.status(500).json({ ok: false, error: String(e && e.message ? e.message : e) });
-    }
-    return;
-  }
+// ---------- Handler ----------
+module.exports = async (req, res) => {
+  // CORS — allow the dashboard to call this from anywhere it's hosted.
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') { res.status(204).end(); return; }
 
   try {
-    const { from, to, enterprise, account_type, refresh } = req.query || {};
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const q = Object.fromEntries(url.searchParams.entries());
+    const forceRefresh = q.refresh === '1' || q.refresh === 'true';
 
-    const csv = await getCsv(refresh === "1" || refresh === "true");
-    const headers = csv.headers;
-    const records = csv.records;
-
-    if (records.length === 0) {
-      res.status(200).json({
-        headers,
-        filters: { enterprises: [], account_types: [], minDate: null, maxDate: null },
-        skuByDay: [],
-        imageByDay: [],
-        editedByDay: [],
-        totals: { sku: 0, image: 0, edited: 0 },
-      });
-      return;
+    // Multi-valued params: prefer repeated params (?enterprise=A&enterprise=B)
+    // or pipe-separated (?enterprise=A|B). Commas are NOT used as separators
+    // because enterprise names may legitimately contain commas (e.g. "BigCo, Inc.").
+    function multi(name) {
+      const all = url.searchParams.getAll(name);
+      if (all.length === 0) return null;
+      const parts = [];
+      for (const v of all) {
+        if (v.includes('|')) parts.push(...v.split('|'));
+        else parts.push(v);
+      }
+      const cleaned = parts.map(s => s.trim()).filter(Boolean);
+      return cleaned.length ? cleaned : null;
     }
 
-    // Resolve actual column names from headers (defensive — Metabase columns may vary in case)
-    const dateCol =
-      findCol(headers, ["date", "created_at", "day", "created_date", "event_date"]) ||
-      headers[0];
-    const enterpriseCol = findCol(headers, [
-      "enterprise_name",
-      "enterprise",
-      "client_name",
-      "company_name",
-    ]);
-    const accountTypeCol = findCol(headers, ["account_type", "accounttype", "type"]);
-    const skuCol = findCol(headers, ["sku", "sku_id", "sku_name"]);
-    const imageCol = findCol(headers, ["image", "image_id", "image_url", "image_name"]);
-    const imageActionCol = findCol(headers, ["image_action", "action", "edit_action"]);
+    const { rows, headers, fetchedAt, fromCache } = await getRows(forceRefresh);
 
-    // Build unique filter options BEFORE filtering, so the dropdowns are stable
+    // Resolve actual header names from the schema (handles b.image_id / image_id variants)
+    const H = {
+      image_id:        findHeader(headers, ['b.image_id', 'image_id', 'bimage_id']),
+      sku_id:          findHeader(headers, ['sku_id']),
+      created:         findHeader(headers, ['createdDate', 'created_date', 'created']),
+      edited:          findHeader(headers, ['editedDate', 'edited_date', 'edited']),
+      image_action:    findHeader(headers, ['image_action']),
+      enterprise_name: findHeader(headers, ['enterprise_name']),
+      account_type:    findHeader(headers, ['account_type']),
+    };
+
+    // Parse filter inputs
+    const fromD = q.from ? parseDate(q.from) : null;
+    let toD = q.to ? parseDate(q.to) : null;
+    // If "to" is a date-only, treat it as end of that day
+    if (toD && q.to && /^\d{4}-\d{2}-\d{2}$/.test(q.to)) {
+      toD = new Date(toD.getTime() + (24 * 60 * 60 * 1000) - 1);
+    }
+    const enterprises = multi('enterprise');
+    const accountTypes = multi('account_type');
+
+    // Build filter option lists from the full dataset (before filtering)
     const enterpriseSet = new Set();
     const accountTypeSet = new Set();
-    let minDate = null;
-    let maxDate = null;
-
-    for (const r of records) {
-      if (enterpriseCol && isNonEmpty(r[enterpriseCol])) enterpriseSet.add(String(r[enterpriseCol]).trim());
-      if (accountTypeCol && isNonEmpty(r[accountTypeCol])) accountTypeSet.add(String(r[accountTypeCol]).trim());
-      const dk = toDayKey(r[dateCol]);
-      if (dk) {
-        if (!minDate || dk < minDate) minDate = dk;
-        if (!maxDate || dk > maxDate) maxDate = dk;
+    for (const r of rows) {
+      if (H.enterprise_name) {
+        const v = r[H.enterprise_name];
+        if (!isBlank(v)) enterpriseSet.add(String(v).trim());
+      }
+      if (H.account_type) {
+        const v = r[H.account_type];
+        if (!isBlank(v)) accountTypeSet.add(String(v).trim());
       }
     }
 
     // Apply filters
-    const fromKey = from ? toDayKey(from) : null;
-    const toKey = to ? toDayKey(to) : null;
-
-    const filtered = records.filter((r) => {
-      const dk = toDayKey(r[dateCol]);
-      if (!dk) return false;
-      if (fromKey && dk < fromKey) return false;
-      if (toKey && dk > toKey) return false;
-      if (enterprise && enterpriseCol) {
-        if (String(r[enterpriseCol]).trim() !== String(enterprise).trim()) return false;
+    const filtered = rows.filter(r => {
+      if (fromD || toD) {
+        const cd = H.created ? parseDate(r[H.created]) : null;
+        if (!cd) return false;
+        if (fromD && cd < fromD) return false;
+        if (toD && cd > toD) return false;
       }
-      if (account_type && accountTypeCol) {
-        if (String(r[accountTypeCol]).trim() !== String(account_type).trim()) return false;
+      if (enterprises && H.enterprise_name) {
+        const v = String(r[H.enterprise_name] || '').trim();
+        if (!enterprises.includes(v)) return false;
+      }
+      if (accountTypes && H.account_type) {
+        const v = String(r[H.account_type] || '').trim();
+        if (!accountTypes.includes(v)) return false;
       }
       return true;
     });
 
-    // Day-wise aggregation
-    // For distinct counts we accumulate Sets per day, then convert to counts.
-    const skuByDayMap = new Map();      // day -> Set of sku
-    const imageByDayMap = new Map();    // day -> Set of image
-    const editedByDayMap = new Map();   // day -> count (or Set of edited images for distinctness)
+    // Aggregate
+    const distinctSku = new Set();
+    const distinctImage = new Set();
+    let editedCount = 0;
+    const editedImageIds = new Set();
 
     for (const r of filtered) {
-      const dk = toDayKey(r[dateCol]);
-      if (!dk) continue;
-
-      if (skuCol && isNonEmpty(r[skuCol])) {
-        if (!skuByDayMap.has(dk)) skuByDayMap.set(dk, new Set());
-        skuByDayMap.get(dk).add(String(r[skuCol]).trim());
+      if (H.sku_id) {
+        const s = r[H.sku_id];
+        if (!isBlank(s)) distinctSku.add(String(s).trim());
       }
-      if (imageCol && isNonEmpty(r[imageCol])) {
-        if (!imageByDayMap.has(dk)) imageByDayMap.set(dk, new Set());
-        imageByDayMap.get(dk).add(String(r[imageCol]).trim());
+      if (H.image_id) {
+        const i = r[H.image_id];
+        if (!isBlank(i)) distinctImage.add(String(i).trim());
       }
-      if (imageActionCol && isNonEmpty(r[imageActionCol])) {
-        // count edited rows; if there's an image col, count distinct edited images instead
-        if (imageCol && isNonEmpty(r[imageCol])) {
-          if (!editedByDayMap.has(dk)) editedByDayMap.set(dk, new Set());
-          editedByDayMap.get(dk).add(String(r[imageCol]).trim());
-        } else {
-          editedByDayMap.set(dk, (editedByDayMap.get(dk) || 0) + 1);
+      if (H.image_action && !isBlank(r[H.image_action])) {
+        editedCount++;
+        if (H.image_id && !isBlank(r[H.image_id])) {
+          editedImageIds.add(String(r[H.image_id]).trim());
         }
       }
     }
 
-    const allDays = new Set([
-      ...skuByDayMap.keys(),
-      ...imageByDayMap.keys(),
-      ...editedByDayMap.keys(),
-    ]);
-    const sortedDays = Array.from(allDays).sort();
-
-    const skuByDay = sortedDays.map((d) => ({
-      date: d,
-      count: skuByDayMap.has(d) ? skuByDayMap.get(d).size : 0,
-    }));
-    const imageByDay = sortedDays.map((d) => ({
-      date: d,
-      count: imageByDayMap.has(d) ? imageByDayMap.get(d).size : 0,
-    }));
-    const editedByDay = sortedDays.map((d) => {
-      const v = editedByDayMap.get(d);
-      return {
-        date: d,
-        count: v instanceof Set ? v.size : v || 0,
-      };
-    });
-
-    // Totals across the filtered range (distinct, not summed)
-    const totalSku = new Set();
-    const totalImage = new Set();
-    let totalEdited = 0;
-    const totalEditedSet = new Set();
-
-    for (const r of filtered) {
-      if (skuCol && isNonEmpty(r[skuCol])) totalSku.add(String(r[skuCol]).trim());
-      if (imageCol && isNonEmpty(r[imageCol])) totalImage.add(String(r[imageCol]).trim());
-      if (imageActionCol && isNonEmpty(r[imageActionCol])) {
-        if (imageCol && isNonEmpty(r[imageCol])) totalEditedSet.add(String(r[imageCol]).trim());
-        else totalEdited++;
-      }
-    }
-    const totals = {
-      sku: totalSku.size,
-      image: totalImage.size,
-      edited: totalEditedSet.size > 0 ? totalEditedSet.size : totalEdited,
-    };
-
-    // Cache for 1 hour on Vercel's edge — CSV is public, refreshes are smooth
-    res.setHeader("Cache-Control", "s-maxage=3600, stale-while-revalidate=300");
+    res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
     res.status(200).json({
-      filters: {
-        enterprises: Array.from(enterpriseSet).sort(),
-        account_types: Array.from(accountTypeSet).sort(),
-        minDate,
-        maxDate,
+      ok: true,
+      fromCache,
+      lastFetched: new Date(fetchedAt).toISOString(),
+      cacheTtlSeconds: CACHE_TTL_MS / 1000,
+      rowsConsidered: filtered.length,
+      totalRows: rows.length,
+      metrics: {
+        distinctSkuCount: distinctSku.size,
+        distinctImageCount: distinctImage.size,
+        editedImageCount: editedCount,
+        distinctEditedImageCount: editedImageIds.size,
       },
-      columnsDetected: {
-        date: dateCol,
-        enterprise: enterpriseCol,
-        account_type: accountTypeCol,
-        sku: skuCol,
-        image: imageCol,
-        image_action: imageActionCol,
+      filterOptions: {
+        enterprise_name: Array.from(enterpriseSet).sort((a, b) => a.localeCompare(b)),
+        account_type:    Array.from(accountTypeSet).sort((a, b) => a.localeCompare(b)),
       },
-      skuByDay,
-      imageByDay,
-      editedByDay,
-      totals,
-      rowCount: filtered.length,
-      cache: {
-        fetchedAt: csv.fetchedAt,
-        ageSeconds: Math.floor((Date.now() - csv.fetchedAt) / 1000),
-        nextRefreshAt: csv.fetchedAt + CACHE_TTL_MS,
-        stale: !!csv.stale,
+      resolvedHeaders: H,
+      appliedFilters: {
+        from: q.from || null,
+        to: q.to || null,
+        enterprise: enterprises,
+        account_type: accountTypes,
       },
     });
   } catch (err) {
-    console.error("[api/data] error:", err);
-    res.status(500).json({
-      error: String(err && err.message ? err.message : err),
-      stack: err && err.stack ? err.stack.split("\n").slice(0, 5).join("\n") : null,
-      hint: "Check the Metabase URL is still public and accessible, and that the CSV is well-formed.",
-    });
+    res.status(500).json({ ok: false, error: err.message });
   }
-}
+};
