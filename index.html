@@ -275,6 +275,108 @@
       }
       .chart-box { height: 280px; position: relative; }
 
+      .chart-empty {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--ink-faint);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        pointer-events: none;
+      }
+      .chart-empty.hidden { display: none; }
+
+      .error-banner {
+        background: linear-gradient(135deg, rgba(239, 71, 111, 0.12), rgba(239, 71, 111, 0.04));
+        border: 1px solid rgba(239, 71, 111, 0.4);
+        border-radius: var(--radius);
+        margin-bottom: 20px;
+        overflow: hidden;
+        animation: slideDown 0.3s ease-out;
+      }
+      .error-banner.warning {
+        background: linear-gradient(135deg, rgba(255, 209, 102, 0.12), rgba(255, 209, 102, 0.04));
+        border-color: rgba(255, 209, 102, 0.4);
+      }
+      @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .error-banner-inner {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 16px;
+        padding: 18px 22px;
+        align-items: start;
+      }
+      .error-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: var(--accent-2);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-family: "Fraunces", serif;
+        font-size: 18px;
+        line-height: 1;
+        flex-shrink: 0;
+      }
+      .error-banner.warning .error-icon { background: var(--accent); color: #2a200a; }
+      .error-title {
+        font-weight: 600;
+        font-size: 14px;
+        margin-bottom: 4px;
+        color: var(--ink);
+      }
+      .error-message {
+        color: var(--ink-dim);
+        font-size: 13px;
+        line-height: 1.5;
+        word-break: break-word;
+      }
+      .error-details {
+        margin-top: 10px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+      }
+      .error-details summary {
+        cursor: pointer;
+        color: var(--ink-faint);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        user-select: none;
+      }
+      .error-details summary:hover { color: var(--ink-dim); }
+      .error-details pre {
+        margin-top: 8px;
+        padding: 10px 12px;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--ink-dim);
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: 200px;
+        overflow: auto;
+      }
+      .error-dismiss {
+        background: transparent;
+        border: none;
+        color: var(--ink-faint);
+        font-size: 22px;
+        cursor: pointer;
+        line-height: 1;
+        padding: 0 4px;
+      }
+      .error-dismiss:hover { color: var(--ink); }
+
       .footer-note {
         margin-top: 28px;
         padding-top: 18px;
@@ -352,6 +454,21 @@
         </div>
       </header>
 
+      <div class="error-banner" id="error-banner" hidden>
+        <div class="error-banner-inner">
+          <div class="error-icon">!</div>
+          <div class="error-content">
+            <div class="error-title" id="error-title">Something went wrong</div>
+            <div class="error-message" id="error-message"></div>
+            <details class="error-details" id="error-details" hidden>
+              <summary>Debug info</summary>
+              <pre id="error-debug"></pre>
+            </details>
+          </div>
+          <button class="error-dismiss" id="error-dismiss" title="Dismiss">×</button>
+        </div>
+      </div>
+
       <section class="filters">
         <div class="field">
           <label for="from">From</label>
@@ -400,6 +517,7 @@
           <div class="desc">Unique SKUs recorded each day in the selected range.</div>
           <div class="chart-box">
             <canvas id="chart-sku"></canvas>
+            <div class="chart-empty hidden" id="empty-sku">No data in this range</div>
             <div class="loading" id="loading-sku">Loading…</div>
           </div>
         </div>
@@ -408,6 +526,7 @@
           <div class="desc">Unique images recorded each day in the selected range.</div>
           <div class="chart-box">
             <canvas id="chart-image"></canvas>
+            <div class="chart-empty hidden" id="empty-image">No data in this range</div>
             <div class="loading" id="loading-image">Loading…</div>
           </div>
         </div>
@@ -416,6 +535,7 @@
           <div class="desc">Images where <code style="color:var(--accent)">image_action</code> is not null.</div>
           <div class="chart-box">
             <canvas id="chart-edited"></canvas>
+            <div class="chart-empty hidden" id="empty-edited">No data in this range</div>
             <div class="loading" id="loading-edited">Loading…</div>
           </div>
         </div>
@@ -459,6 +579,32 @@
         t.classList.add("show");
         setTimeout(() => t.classList.remove("show"), 3500);
       }
+
+      function showError(title, message, debug = null, level = "error") {
+        const banner = document.getElementById("error-banner");
+        const titleEl = document.getElementById("error-title");
+        const msgEl = document.getElementById("error-message");
+        const details = document.getElementById("error-details");
+        const debugEl = document.getElementById("error-debug");
+
+        banner.classList.toggle("warning", level === "warning");
+        titleEl.textContent = title;
+        msgEl.textContent = message;
+
+        if (debug) {
+          details.hidden = false;
+          debugEl.textContent =
+            typeof debug === "string" ? debug : JSON.stringify(debug, null, 2);
+        } else {
+          details.hidden = true;
+        }
+        banner.hidden = false;
+        console.error(`[dashboard:${level}] ${title} — ${message}`, debug || "");
+      }
+      function hideError() {
+        document.getElementById("error-banner").hidden = true;
+      }
+      document.getElementById("error-dismiss")?.addEventListener("click", hideError);
 
       function setLoading(on) {
         ["sku", "image", "edited"].forEach((k) => {
@@ -704,47 +850,91 @@
         if (params.account_type) qs.set("account_type", params.account_type);
         if (force) qs.set("refresh", "1");
         const url = `${API_URL}?${qs.toString()}`;
+        console.log("[dashboard] GET", url);
         const r = await fetch(url, force ? { cache: "no-store" } : {});
-        if (!r.ok) throw new Error(`API ${r.status}`);
-        return r.json();
+        if (!r.ok) {
+          let body = "";
+          try { body = await r.text(); } catch (_) {}
+          const err = new Error(`API ${r.status} ${r.statusText}${body ? " — " + body.slice(0, 300) : ""}`);
+          err.status = r.status;
+          throw err;
+        }
+        const json = await r.json();
+        if (json.error) {
+          throw new Error("API returned error: " + json.error);
+        }
+        return json;
       }
 
       async function fetchViaCsv(params, force = false) {
         if (force || !cachedCsv) {
+          console.log("[dashboard] GET CSV (fallback)", CSV_FALLBACK_URL);
           const r = await fetch(CSV_FALLBACK_URL, force ? { cache: "no-store" } : {});
-          if (!r.ok) throw new Error(`CSV ${r.status}`);
+          if (!r.ok) throw new Error(`CSV ${r.status} ${r.statusText}`);
           const text = await r.text();
+          if (!text || text.trim().length === 0) {
+            throw new Error("CSV response was empty");
+          }
           cachedCsv = parseCSV(text);
+          if (cachedCsv.records.length === 0) {
+            throw new Error("CSV parsed to zero rows — header line: " + cachedCsv.headers.join(","));
+          }
         }
         return aggregateClient(cachedCsv.records, cachedCsv.headers, params);
       }
 
       async function fetchData(params, force = false) {
         // try API first; on network/404, fall back to direct CSV
+        let apiErr = null;
         try {
           return await fetchViaApi(params, force);
         } catch (e) {
-          console.warn("API unavailable, falling back to direct CSV:", e.message);
+          apiErr = e;
+          console.warn("[dashboard] API unavailable, falling back to direct CSV:", e.message);
           document.getElementById("status").textContent = "Direct CSV mode";
+        }
+        try {
           return await fetchViaCsv(params, force);
+        } catch (e) {
+          // throw a combined error so the UI can display both
+          const combined = new Error(
+            `Both data sources failed.\n• API: ${apiErr ? apiErr.message : "n/a"}\n• CSV fallback: ${e.message}`
+          );
+          combined.apiError = apiErr;
+          combined.csvError = e;
+          throw combined;
         }
       }
 
       // ============================================================
       // Charts
       // ============================================================
+      function toggleEmpty(canvasId, isEmpty) {
+        const map = {
+          "chart-sku": "empty-sku",
+          "chart-image": "empty-image",
+          "chart-edited": "empty-edited",
+        };
+        const el = document.getElementById(map[canvasId]);
+        if (el) el.classList.toggle("hidden", !isEmpty);
+      }
+
       function buildChart(canvasId, label, data, color) {
-        const ctx = document.getElementById(canvasId).getContext("2d");
-        if (charts[canvasId]) charts[canvasId].destroy();
+        try {
+          const isEmpty = !data || data.length === 0 || data.every((d) => !d.count);
+          toggleEmpty(canvasId, isEmpty);
 
-        const labels = data.map((d) => d.date);
-        const values = data.map((d) => d.count);
+          const ctx = document.getElementById(canvasId).getContext("2d");
+          if (charts[canvasId]) charts[canvasId].destroy();
 
-        const grad = ctx.createLinearGradient(0, 0, 0, 280);
-        grad.addColorStop(0, color + "55");
-        grad.addColorStop(1, color + "00");
+          const labels = data.map((d) => d.date);
+          const values = data.map((d) => d.count);
 
-        charts[canvasId] = new Chart(ctx, {
+          const grad = ctx.createLinearGradient(0, 0, 0, 280);
+          grad.addColorStop(0, color + "55");
+          grad.addColorStop(1, color + "00");
+
+          charts[canvasId] = new Chart(ctx, {
           type: "line",
           data: {
             labels,
@@ -808,6 +998,16 @@
             },
           },
         });
+        } catch (err) {
+          console.error(`[dashboard] Chart "${canvasId}" failed to render:`, err);
+          toggleEmpty(canvasId, true);
+          const el = document.getElementById({
+            "chart-sku": "empty-sku",
+            "chart-image": "empty-image",
+            "chart-edited": "empty-edited",
+          }[canvasId]);
+          if (el) el.textContent = "Chart error: " + err.message;
+        }
       }
 
       // ============================================================
@@ -859,9 +1059,44 @@
         buildChart("chart-edited", "Edited", data.editedByDay, "#ef476f");
       }
 
+      function describeEmptyResult(data, params) {
+        // Returns null if there is data; otherwise an object explaining why
+        const hasAnyData =
+          (data.skuByDay && data.skuByDay.length > 0) ||
+          (data.imageByDay && data.imageByDay.length > 0) ||
+          (data.editedByDay && data.editedByDay.length > 0);
+        if (hasAnyData) return null;
+
+        const cols = data.columnsDetected || {};
+        const missing = [];
+        if (!cols.date) missing.push("date");
+        if (!cols.sku) missing.push("sku");
+        if (!cols.image) missing.push("image");
+
+        let title, message;
+        if (missing.length > 0) {
+          title = "Expected columns not found in CSV";
+          message = `The data loaded, but these columns couldn't be located: ${missing.join(", ")}. The dashboard expects column names like "date", "sku", "image", "image_action", "enterprise_name", "account_type".`;
+        } else if (data.rowCount === 0) {
+          const hasFilter =
+            params.from || params.to || params.enterprise || params.account_type;
+          title = hasFilter
+            ? "No rows match the current filters"
+            : "The data source returned 0 rows";
+          message = hasFilter
+            ? "Try clearing the date range or other filters."
+            : "The CSV loaded but contained no rows. Check the Metabase question.";
+        } else {
+          title = "Data loaded but nothing to chart";
+          message = `${data.rowCount} rows loaded but no day-wise values could be computed. This usually means the date column has unparseable values.`;
+        }
+        return { title, message, debug: data };
+      }
+
       async function refresh(force = false) {
         const params = readFilters();
         const btn = document.getElementById("refresh-now");
+        hideError();
 
         // 1) instant paint from cache (only if not forcing)
         if (!force) {
@@ -878,18 +1113,47 @@
         if (force && btn) btn.classList.add("spinning");
         try {
           const data = await fetchData(params, force);
+
+          // Empty / mis-detected diagnostic
+          const empty = describeEmptyResult(data, params);
+          if (empty) {
+            showError(empty.title, empty.message, empty.debug, "warning");
+          }
+
           applyData(data);
           saveCache(params, data);
 
           lastRefreshAt = Date.now();
-          document.getElementById("status").textContent = "Connected";
+          document.getElementById("status").textContent = empty ? "No data" : "Connected";
           document.getElementById("last-updated").textContent =
             "Updated · " + new Date(lastRefreshAt).toLocaleString();
           updateCountdown();
         } catch (e) {
-          console.error(e);
-          showToast("Failed to load data: " + e.message);
+          console.error("[dashboard] refresh failed:", e);
+          const debug = {
+            time: new Date().toISOString(),
+            url: location.href,
+            apiUrl: API_URL,
+            csvFallback: CSV_FALLBACK_URL,
+            params,
+            apiError: e.apiError ? e.apiError.message : null,
+            csvError: e.csvError ? e.csvError.message : null,
+            message: e.message,
+            stack: e.stack,
+          };
+          showError(
+            "Failed to load data",
+            e.message || "An unknown error occurred while fetching data.",
+            debug,
+            "error"
+          );
+          showToast("Data load failed");
           document.getElementById("status").textContent = "Error";
+
+          // also blank the chart bodies so the user doesn't see stale paint
+          toggleEmpty("chart-sku", true);
+          toggleEmpty("chart-image", true);
+          toggleEmpty("chart-edited", true);
         } finally {
           setLoading(false);
           if (btn) setTimeout(() => btn.classList.remove("spinning"), 600);
