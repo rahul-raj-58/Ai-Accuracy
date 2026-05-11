@@ -1,12 +1,12 @@
-// /api/metrics  — Vercel serverless function
+// /api/metrics.js  — Vercel serverless function
 // Fetches CSV from the Metabase public link, parses it, applies filters,
-// returns distinct sku_id count, image_id count, and edited image count.
+// and returns distinct sku_id count, distinct image_id count, and edited image count.
 //
 // Query params (all optional):
 //   from           ISO date (inclusive)        e.g. 2025-05-01
 //   to             ISO date (inclusive)        e.g. 2025-05-11
-//   enterprise     comma-separated list of enterprise_name values
-//   account_type   comma-separated list of account_type values
+//   enterprise     enterprise_name to filter by (repeat param for multiple values)
+//   account_type   account_type to filter by   (repeat param for multiple values)
 //   refresh        "1" to bypass the 1-hour server cache
 //
 // Response: { metrics, filterOptions, lastFetched, rowsConsidered, fromCache }
@@ -18,7 +18,7 @@ const METABASE_CSV_URL =
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 let cache = { fetchedAt: 0, rows: null, headers: null };
 
-// ---------- CSV parsing (RFC 4180-ish, handles quotes + commas in fields) ----------
+// ---------- CSV parsing (RFC 4180-ish, handles quoted fields with commas) ----------
 function parseCSV(text) {
   const rows = [];
   let cur = [];
@@ -47,7 +47,6 @@ function parseCSV(text) {
       }
     }
   }
-  // last field/row
   if (field.length > 0 || cur.length > 0) {
     cur.push(field);
     rows.push(cur);
@@ -73,14 +72,12 @@ function isBlank(v) {
 
 function parseDate(v) {
   if (isBlank(v)) return null;
-  // Metabase typically exports "YYYY-MM-DD HH:mm:ss" or ISO.
   const s = String(v).trim().replace(' ', 'T');
   const d = new Date(s);
   return isNaN(d.getTime()) ? null : d;
 }
 
 function findHeader(headers, candidates) {
-  // Case-insensitive header resolver — handles dots/underscores variations
   const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
   const map = {};
   headers.forEach(h => { map[norm(h)] = h; });
@@ -92,9 +89,7 @@ function findHeader(headers, candidates) {
 }
 
 async function fetchCSV() {
-  const res = await fetch(METABASE_CSV_URL, {
-    headers: { 'Accept': 'text/csv' },
-  });
+  const res = await fetch(METABASE_CSV_URL, { headers: { 'Accept': 'text/csv' } });
   if (!res.ok) throw new Error(`Metabase fetch failed: ${res.status} ${res.statusText}`);
   const text = await res.text();
   return parseCSV(text);
@@ -112,7 +107,6 @@ async function getRows(forceRefresh) {
 
 // ---------- Handler ----------
 module.exports = async (req, res) => {
-  // CORS — allow the dashboard to call this from anywhere it's hosted.
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -123,9 +117,8 @@ module.exports = async (req, res) => {
     const q = Object.fromEntries(url.searchParams.entries());
     const forceRefresh = q.refresh === '1' || q.refresh === 'true';
 
-    // Multi-valued params: prefer repeated params (?enterprise=A&enterprise=B)
-    // or pipe-separated (?enterprise=A|B). Commas are NOT used as separators
-    // because enterprise names may legitimately contain commas (e.g. "BigCo, Inc.").
+    // Multi-valued params: repeat the param or pipe-separate (?enterprise=A|B).
+    // Commas are NOT separators — enterprise names may contain commas.
     function multi(name) {
       const all = url.searchParams.getAll(name);
       if (all.length === 0) return null;
@@ -140,9 +133,9 @@ module.exports = async (req, res) => {
 
     const { rows, headers, fetchedAt, fromCache } = await getRows(forceRefresh);
 
-    // Resolve actual header names from the schema (handles b.image_id / image_id variants)
+    // Resolve actual header names from the schema
     const H = {
-      image_id:        findHeader(headers, ['b.image_id', 'image_id', 'bimage_id']),
+      image_id:        findHeader(headers, ['b.image_id', 'image_id']),
       sku_id:          findHeader(headers, ['sku_id']),
       created:         findHeader(headers, ['createdDate', 'created_date', 'created']),
       edited:          findHeader(headers, ['editedDate', 'edited_date', 'edited']),
@@ -151,17 +144,15 @@ module.exports = async (req, res) => {
       account_type:    findHeader(headers, ['account_type']),
     };
 
-    // Parse filter inputs
     const fromD = q.from ? parseDate(q.from) : null;
     let toD = q.to ? parseDate(q.to) : null;
-    // If "to" is a date-only, treat it as end of that day
     if (toD && q.to && /^\d{4}-\d{2}-\d{2}$/.test(q.to)) {
       toD = new Date(toD.getTime() + (24 * 60 * 60 * 1000) - 1);
     }
     const enterprises = multi('enterprise');
     const accountTypes = multi('account_type');
 
-    // Build filter option lists from the full dataset (before filtering)
+    // Build filter option lists from the full dataset
     const enterpriseSet = new Set();
     const accountTypeSet = new Set();
     for (const r of rows) {
@@ -235,7 +226,6 @@ module.exports = async (req, res) => {
         enterprise_name: Array.from(enterpriseSet).sort((a, b) => a.localeCompare(b)),
         account_type:    Array.from(accountTypeSet).sort((a, b) => a.localeCompare(b)),
       },
-      resolvedHeaders: H,
       appliedFilters: {
         from: q.from || null,
         to: q.to || null,
