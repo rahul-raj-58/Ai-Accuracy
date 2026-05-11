@@ -896,9 +896,16 @@
         try {
           return await fetchViaCsv(params, force);
         } catch (e) {
+          // "Load failed" / "Failed to fetch" with no further detail is almost
+          // always CORS — Metabase blocks the browser from reading the CSV directly.
+          const looksLikeCors =
+            /load failed|failed to fetch|networkerror/i.test(e.message || "");
+          const csvMsg = looksLikeCors
+            ? `${e.message} (likely a CORS block from Metabase — the browser cannot fetch the CSV directly; the API must work)`
+            : e.message;
           // throw a combined error so the UI can display both
           const combined = new Error(
-            `Both data sources failed.\n• API: ${apiErr ? apiErr.message : "n/a"}\n• CSV fallback: ${e.message}`
+            `Both data sources failed.\n• API: ${apiErr ? apiErr.message : "n/a"}\n• CSV fallback: ${csvMsg}`
           );
           combined.apiError = apiErr;
           combined.csvError = e;
