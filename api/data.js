@@ -135,23 +135,37 @@ async function getPayload(forceRefresh) {
   return { ...payload, fromCache: false };
 }
 
-module.exports = async (req, res) => {
+async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') { res.status(204).end(); return; }
 
   try {
-    const url = new URL(req.url, `http://${req.headers.host}`);
-    const forceRefresh = url.searchParams.get('refresh') === '1';
+    const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
 
+    // Sanity-check endpoint — confirms the function is alive without
+    // hitting Metabase. Open /api/metrics?ping=1 in a browser tab.
+    if (url.searchParams.get('ping') === '1') {
+      res.status(200).json({
+        ok: true,
+        ping: 'pong',
+        nodeVersion: process.version,
+        time: new Date().toISOString(),
+      });
+      return;
+    }
+
+    const forceRefresh = url.searchParams.get('refresh') === '1';
     const payload = await getPayload(forceRefresh);
 
-    // Compress repetition: gzip via Vercel's default compression is automatic.
     res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.status(200).json(payload);
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    res.status(500).json({ ok: false, error: err.message, stack: err.stack });
   }
-};
+}
+
+module.exports = handler;
+module.exports.default = handler;
