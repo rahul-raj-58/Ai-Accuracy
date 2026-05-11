@@ -12,6 +12,41 @@
 const METABASE_CSV_URL =
   "https://metabase.spyne.ai/public/question/8870098d-e121-4caa-9e9f-69c31ce9c50e.csv";
 
+// fetch polyfill: global fetch is available in Node 18+, but some Vercel
+// projects still run on older runtimes. Fall back to https module if needed.
+const _fetch =
+  typeof fetch === "function"
+    ? fetch
+    : async function (url) {
+        const https = require("https");
+        const { URL } = require("url");
+        return new Promise((resolve, reject) => {
+          const u = new URL(url);
+          const req = https.get(
+            { hostname: u.hostname, path: u.pathname + u.search, headers: { "User-Agent": "vercel-dashboard" } },
+            (res) => {
+              if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                _fetch(res.headers.location).then(resolve, reject);
+                return;
+              }
+              const chunks = [];
+              res.on("data", (c) => chunks.push(c));
+              res.on("end", () => {
+                const body = Buffer.concat(chunks).toString("utf8");
+                resolve({
+                  ok: res.statusCode >= 200 && res.statusCode < 300,
+                  status: res.statusCode,
+                  statusText: res.statusMessage || "",
+                  text: async () => body,
+                });
+              });
+            }
+          );
+          req.on("error", reject);
+          req.setTimeout(20000, () => req.destroy(new Error("Metabase fetch timeout")));
+        });
+      };
+
 // ---------- tiny CSV parser (handles quoted fields, commas, escaped quotes) ----------
 function parseCSV(text) {
   const rows = [];
@@ -124,7 +159,7 @@ async function getCsv(forceRefresh = false) {
   if (!forceRefresh && csvCache && now - csvCache.fetchedAt < CACHE_TTL_MS) {
     return { ...csvCache, cached: true };
   }
-  const resp = await fetch(METABASE_CSV_URL);
+  const resp = await _fetch(METABASE_CSV_URL);
   if (!resp.ok) {
     // serve stale on failure if we have it
     if (csvCache) return { ...csvCache, cached: true, stale: true };
@@ -137,13 +172,38 @@ async function getCsv(forceRefresh = false) {
 }
 
 // ---------- main handler ----------
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // CORS so the UI (even on a different origin) can call this
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") {
     res.status(200).end();
+    return;
+  }
+
+  // Diagnostics endpoint: ?diag=1 returns environment info without doing real work.
+  // Useful for sanity-checking the function even when CSV parsing fails.
+  if (req.query && (req.query.diag === "1" || req.query.diag === "true")) {
+    try {
+      const probe = await _fetch(METABASE_CSV_URL).catch((e) => ({
+        ok: false, status: "fetch-threw", statusText: String(e && e.message ? e.message : e),
+      }));
+      res.status(200).json({
+        ok: true,
+        nodeVersion: process.version,
+        hasFetch: typeof fetch === "function",
+        metabaseProbe: {
+          ok: probe.ok,
+          status: probe.status,
+          statusText: probe.statusText || null,
+        },
+        cacheLoaded: !!csvCache,
+        cacheAgeSeconds: csvCache ? Math.floor((Date.now() - csvCache.fetchedAt) / 1000) : null,
+      });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: String(e && e.message ? e.message : e) });
+    }
     return;
   }
 
