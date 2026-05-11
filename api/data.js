@@ -112,6 +112,30 @@ function isNonEmpty(v) {
   return s !== "" && s !== "null" && s !== "na" && s !== "n/a";
 }
 
+// ---------- in-memory cache (per warm serverless instance) ----------
+// We cache the *parsed* CSV for 1 hour. The CDN cache on top of this (set
+// via Cache-Control below) is the real workhorse — this just avoids
+// re-parsing inside a single warm container.
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+let csvCache = null; // { fetchedAt: number, headers: [], records: [] }
+
+async function getCsv(forceRefresh = false) {
+  const now = Date.now();
+  if (!forceRefresh && csvCache && now - csvCache.fetchedAt < CACHE_TTL_MS) {
+    return { ...csvCache, cached: true };
+  }
+  const resp = await fetch(METABASE_CSV_URL);
+  if (!resp.ok) {
+    // serve stale on failure if we have it
+    if (csvCache) return { ...csvCache, cached: true, stale: true };
+    throw new Error(`Metabase fetch failed: ${resp.status} ${resp.statusText}`);
+  }
+  const csvText = await resp.text();
+  const parsed = parseCSV(csvText);
+  csvCache = { fetchedAt: now, ...parsed };
+  return { ...csvCache, cached: false };
+}
+
 // ---------- main handler ----------
 export default async function handler(req, res) {
   // CORS so the UI (even on a different origin) can call this
@@ -124,17 +148,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { from, to, enterprise, account_type } = req.query || {};
+    const { from, to, enterprise, account_type, refresh } = req.query || {};
 
-    const resp = await fetch(METABASE_CSV_URL);
-    if (!resp.ok) {
-      res.status(502).json({
-        error: `Metabase fetch failed: ${resp.status} ${resp.statusText}`,
-      });
-      return;
-    }
-    const csvText = await resp.text();
-    const { headers, records } = parseCSV(csvText);
+    const csv = await getCsv(refresh === "1" || refresh === "true");
+    const headers = csv.headers;
+    const records = csv.records;
 
     if (records.length === 0) {
       res.status(200).json({
@@ -269,8 +287,8 @@ export default async function handler(req, res) {
       edited: totalEditedSet.size > 0 ? totalEditedSet.size : totalEdited,
     };
 
-    // Cache for 5 min on Vercel's edge — CSV is public, so this is safe and saves Metabase load
-    res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=60");
+    // Cache for 1 hour on Vercel's edge — CSV is public, refreshes are smooth
+    res.setHeader("Cache-Control", "s-maxage=3600, stale-while-revalidate=300");
     res.status(200).json({
       filters: {
         enterprises: Array.from(enterpriseSet).sort(),
@@ -291,6 +309,12 @@ export default async function handler(req, res) {
       editedByDay,
       totals,
       rowCount: filtered.length,
+      cache: {
+        fetchedAt: csv.fetchedAt,
+        ageSeconds: Math.floor((Date.now() - csv.fetchedAt) / 1000),
+        nextRefreshAt: csv.fetchedAt + CACHE_TTL_MS,
+        stale: !!csv.stale,
+      },
     });
   } catch (err) {
     res.status(500).json({ error: String(err && err.message ? err.message : err) });
