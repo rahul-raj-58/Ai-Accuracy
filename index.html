@@ -3,354 +3,627 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Image Operations · Dashboard</title>
+<title>IMAGE_OPS · Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,800&family=JetBrains+Mono:wght@300;400;500;600&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 <style>
   :root {
-    --bg: #f6f3ec;
-    --bg-card: #fffdf8;
-    --ink: #14110d;
-    --ink-soft: #5c574f;
-    --line: #1a17120f;
-    --line-strong: #1a17122a;
-    --accent: #d4451f;
-    --accent-soft: #f1c8b7;
-    --ok: #2f6d3a;
-    --display: 'Fraunces', 'Times New Roman', serif;
-    --body: 'Inter Tight', system-ui, sans-serif;
-    --mono: 'JetBrains Mono', 'Menlo', monospace;
+    --bg:        #0a0b0d;
+    --bg-1:      #101216;
+    --bg-2:      #161a20;
+    --bg-3:      #1d222a;
+    --line:      #232932;
+    --line-2:    #2e3540;
+    --ink:       #e8ecf2;
+    --ink-soft:  #8a93a3;
+    --ink-dim:   #555c6a;
+    --accent:    #00ff9c;
+    --accent-2:  #00c47a;
+    --warn:      #ffb547;
+    --danger:    #ff4d6d;
+    --sans:      'Geist', system-ui, -apple-system, sans-serif;
+    --mono:      'JetBrains Mono', 'Menlo', ui-monospace, monospace;
   }
 
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body {
-    font-family: var(--body);
+    font-family: var(--sans);
     background: var(--bg);
     color: var(--ink);
     min-height: 100vh;
-    background-image: radial-gradient(circle at 1px 1px, #1a17120c 1px, transparent 0);
-    background-size: 24px 24px;
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
   }
 
-  header.masthead {
-    border-bottom: 1px solid var(--line-strong);
-    background: var(--bg);
-    position: sticky; top: 0; z-index: 50;
-    backdrop-filter: blur(6px);
+  /* ---------- Top bar ---------- */
+  .topbar {
+    background: var(--bg-1);
+    border-bottom: 1px solid var(--line);
+    padding: 0 24px;
+    height: 56px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 24px;
+    position: sticky; top: 0; z-index: 100;
   }
-  .masthead-inner {
-    max-width: 1320px; margin: 0 auto; padding: 18px 32px;
-    display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 16px;
-  }
-  .masthead .logo {
-    font-family: var(--display); font-weight: 800; font-size: 28px;
-    line-height: 1; letter-spacing: -0.02em; font-style: italic;
-  }
-  .masthead .logo .dot { color: var(--accent); }
-  .masthead .meta {
-    font-family: var(--mono); font-size: 11px; color: var(--ink-soft);
-    text-align: right; text-transform: uppercase; letter-spacing: 0.08em; line-height: 1.6;
-  }
-  .meta .live-dot {
-    display: inline-block; width: 7px; height: 7px; background: var(--ok);
-    border-radius: 50%; margin-right: 6px; transform: translateY(-1px);
-    animation: pulse 2.2s ease-in-out infinite;
-  }
-  @keyframes pulse {
-    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 #2f6d3a55; }
-    50%      { opacity: 0.6; box-shadow: 0 0 0 6px #2f6d3a00; }
-  }
-
-  .title-block { max-width: 1320px; margin: 0 auto; padding: 48px 32px 24px; }
-  .eyebrow {
-    font-family: var(--mono); font-size: 11px; text-transform: uppercase;
-    letter-spacing: 0.18em; color: var(--ink-soft); margin-bottom: 16px;
-  }
-  .eyebrow::before {
-    content: "§"; color: var(--accent); margin-right: 8px;
-    font-family: var(--display); font-style: italic;
-  }
-  h1 {
-    font-family: var(--display); font-weight: 400;
-    font-size: clamp(40px, 6vw, 76px); line-height: 0.95;
-    letter-spacing: -0.035em; margin: 0 0 8px;
-  }
-  h1 em { font-style: italic; font-weight: 300; color: var(--accent); }
-  .subtitle { font-size: 16px; color: var(--ink-soft); max-width: 640px; line-height: 1.55; }
-
-  .filter-rail { max-width: 1320px; margin: 32px auto 0; padding: 0 32px; }
-  .rail-card {
-    background: var(--bg-card); border: 1px solid var(--line-strong); padding: 24px;
-    display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 20px; align-items: end;
-  }
-  @media (max-width: 980px) { .rail-card { grid-template-columns: 1fr 1fr; } }
-  @media (max-width: 560px) { .rail-card { grid-template-columns: 1fr; } }
-
-  .field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-  .field label {
-    font-family: var(--mono); font-size: 10px; text-transform: uppercase;
-    letter-spacing: 0.14em; color: var(--ink-soft);
-  }
-  .field label .num {
-    color: var(--accent); font-family: var(--display); font-style: italic;
-    font-weight: 600; margin-right: 6px;
-  }
-
-  .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-  .chip {
-    font-family: var(--mono); font-size: 11px; padding: 6px 10px;
-    background: transparent; border: 1px solid var(--line-strong);
-    cursor: pointer; color: var(--ink); transition: all 0.15s ease;
+  .brand {
+    display: flex; align-items: center; gap: 12px;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
     letter-spacing: 0.02em;
   }
-  .chip:hover { background: var(--ink); color: var(--bg); }
-  .chip.active { background: var(--ink); color: var(--bg-card); border-color: var(--ink); }
-  .date-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .date-inputs input {
-    font-family: var(--mono); font-size: 13px; padding: 10px 12px;
-    border: 1px solid var(--line-strong); background: var(--bg); color: var(--ink);
-    border-radius: 0; outline: none; transition: border-color 0.15s;
+  .brand .pulse {
+    width: 8px; height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 12px var(--accent);
+    animation: pulse 2s ease-in-out infinite;
   }
-  .date-inputs input:focus { border-color: var(--accent); }
-  .date-inputs input:disabled { opacity: 0.5; cursor: not-allowed; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.6; transform: scale(0.85); }
+  }
+  .brand .name { color: var(--ink); }
+  .brand .sep { color: var(--ink-dim); }
+  .brand .env { color: var(--accent); font-size: 11px; padding: 2px 8px; border: 1px solid var(--accent); border-radius: 2px; }
 
-  select {
-    font-family: var(--mono); font-size: 13px; padding: 10px 12px;
-    border: 1px solid var(--line-strong); background: var(--bg); color: var(--ink);
-    border-radius: 0; outline: none; width: 100%; cursor: pointer; appearance: none;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%2314110d' fill='none' stroke-width='1.2'/></svg>");
-    background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
+  .topbar .meta {
+    display: flex;
+    gap: 24px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-soft);
+    justify-content: center;
   }
-  select:focus { border-color: var(--accent); }
+  .meta-item {
+    display: flex; align-items: center; gap: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .meta-item .k { color: var(--ink-dim); }
+  .meta-item .v { color: var(--ink); }
 
-  .actions { display: flex; gap: 8px; }
-  button.primary, button.ghost {
-    font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em;
-    text-transform: uppercase; padding: 12px 18px; cursor: pointer;
-    border-radius: 0; transition: all 0.15s ease; white-space: nowrap;
+  .topbar .actions { display: flex; gap: 8px; align-items: center; }
+  .btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 8px 14px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    border: 1px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
   }
-  button.primary { background: var(--accent); color: var(--bg-card); border: 1px solid var(--accent); }
-  button.primary:hover { background: #b9381a; border-color: #b9381a; }
-  button.primary:disabled { opacity: 0.5; cursor: wait; }
-  button.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line-strong); }
-  button.ghost:hover { background: var(--ink); color: var(--bg-card); }
+  .btn-primary {
+    background: var(--accent);
+    color: #001a10;
+    font-weight: 600;
+  }
+  .btn-primary:hover { background: #00e88c; box-shadow: 0 0 24px #00ff9c30; }
+  .btn-primary:disabled { background: var(--bg-3); color: var(--ink-dim); cursor: wait; box-shadow: none; }
+  .btn-ghost {
+    background: transparent;
+    color: var(--ink-soft);
+    border-color: var(--line-2);
+  }
+  .btn-ghost:hover { background: var(--bg-3); color: var(--ink); border-color: var(--line-2); }
 
-  .metrics {
-    max-width: 1320px; margin: 32px auto 0; padding: 0 32px;
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
-    background: var(--line-strong); border: 1px solid var(--line-strong);
+  .btn .ico {
+    width: 12px; height: 12px;
+    display: inline-block;
+    transition: transform 0.6s ease;
   }
-  @media (max-width: 880px) { .metrics { grid-template-columns: 1fr; } }
+  .btn.syncing .ico { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
-  .metric { background: var(--bg-card); padding: 36px 32px 32px; position: relative; overflow: hidden; }
-  .metric .index {
-    position: absolute; top: 18px; right: 22px;
-    font-family: var(--display); font-style: italic; font-weight: 300;
-    font-size: 13px; color: var(--ink-soft);
-  }
-  .metric .label {
-    font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
-    text-transform: uppercase; color: var(--ink-soft); margin-bottom: 24px;
-  }
-  .metric .value {
-    font-family: var(--display); font-weight: 400;
-    font-size: clamp(48px, 6vw, 84px); line-height: 0.9;
-    letter-spacing: -0.04em; color: var(--ink); font-variant-numeric: tabular-nums;
-  }
-  .metric .value .skel {
-    display: inline-block; width: 180px; height: 0.7em;
-    background: linear-gradient(90deg, #1a171210, #1a171225, #1a171210);
-    background-size: 200% 100%; animation: shimmer 1.4s linear infinite;
-  }
-  @keyframes shimmer {
-    0% { background-position: 100% 0; }
-    100% { background-position: -100% 0; }
-  }
-  .metric .foot {
-    margin-top: 18px; font-family: var(--mono); font-size: 11px;
-    color: var(--ink-soft); border-top: 1px dashed var(--line-strong);
-    padding-top: 14px; display: flex; justify-content: space-between;
-  }
-  .metric.accent::after {
-    content: ""; position: absolute; left: 0; bottom: 0;
-    width: 60px; height: 3px; background: var(--accent);
+  /* ---------- Container ---------- */
+  .container {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 24px;
   }
 
-  .detail-strip {
-    max-width: 1320px; margin: 32px auto 0; padding: 0 32px;
-    display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+  /* ---------- Page header ---------- */
+  .page-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 24px;
+    gap: 24px;
   }
-  @media (max-width: 720px) { .detail-strip { grid-template-columns: 1fr; } }
+  .page-head h1 {
+    font-family: var(--sans);
+    font-weight: 500;
+    font-size: 22px;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .page-head .crumb {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .page-head .crumb .accent { color: var(--accent); }
 
-  .panel { background: var(--bg-card); border: 1px solid var(--line-strong); padding: 24px; }
+  .page-head .right-stats {
+    display: flex; gap: 32px;
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .right-stats .stat .l {
+    color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 4px;
+  }
+  .right-stats .stat .v {
+    color: var(--ink); font-size: 13px; font-weight: 500;
+  }
+
+  /* ---------- Filters bar ---------- */
+  .filters {
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 16px;
+    margin-bottom: 24px;
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 16px;
+    align-items: end;
+  }
+  @media (max-width: 1000px) { .filters { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 600px)  { .filters { grid-template-columns: 1fr; } }
+
+  .f-group { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .f-group .f-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-dim);
+  }
+
+  .presets { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chip {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 6px 10px;
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.12s ease;
+  }
+  .chip:hover { color: var(--ink); border-color: var(--line-2); }
+  .chip.active {
+    background: var(--accent);
+    color: #001a10;
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+
+  .date-inputs {
+    display: grid;
+    grid-template-columns: 1fr 12px 1fr;
+    gap: 6px;
+    align-items: center;
+    margin-top: 6px;
+  }
+  .date-inputs .dash {
+    color: var(--ink-dim);
+    text-align: center;
+    font-family: var(--mono);
+  }
+  .field {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 9px 12px;
+    border: 1px solid var(--line);
+    background: var(--bg-2);
+    color: var(--ink);
+    border-radius: 3px;
+    outline: none;
+    width: 100%;
+    transition: border-color 0.12s;
+    color-scheme: dark;
+  }
+  .field:focus { border-color: var(--accent); }
+  .field:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  select.field {
+    appearance: none;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%238a93a3' fill='none' stroke-width='1.2'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+  }
+
+  /* ---------- Metric cards row ---------- */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 900px) { .kpi-row { grid-template-columns: 1fr; } }
+
+  .kpi {
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 20px 22px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .kpi:hover { border-color: var(--line-2); }
+
+  .kpi::before {
+    content: "";
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    opacity: 0.4;
+  }
+  .kpi[data-tone="2"]::before { background: #5cabff; }
+  .kpi[data-tone="3"]::before { background: var(--warn); }
+
+  .kpi-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 14px;
+  }
+  .kpi-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-soft);
+  }
+  .kpi-id {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-dim);
+    background: var(--bg-3);
+    padding: 2px 6px;
+    border-radius: 2px;
+    letter-spacing: 0.06em;
+  }
+  .kpi-value {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: 44px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 12px;
+  }
+  .kpi-value.loading {
+    color: var(--ink-dim);
+    animation: blink 1.4s ease-in-out infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 0.4; }
+    50%      { opacity: 0.85; }
+  }
+  .kpi-foot {
+    display: flex; justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-soft);
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+  .kpi-foot .badge {
+    color: var(--accent);
+    background: #00ff9c14;
+    padding: 2px 8px;
+    border-radius: 2px;
+    border: 1px solid #00ff9c30;
+    font-weight: 500;
+  }
+  .kpi[data-tone="2"] .kpi-foot .badge { color: #5cabff; background: #5cabff14; border-color: #5cabff30; }
+  .kpi[data-tone="3"] .kpi-foot .badge { color: var(--warn); background: #ffb54714; border-color: #ffb54730; }
+
+  /* ---------- Info grid ---------- */
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 800px) { .info-grid { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 18px 20px;
+  }
   .panel h3 {
-    font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
-    text-transform: uppercase; color: var(--ink-soft); margin: 0 0 18px; font-weight: 500;
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-soft);
+    margin: 0 0 14px;
+    font-weight: 500;
+    display: flex; justify-content: space-between; align-items: center;
   }
-  .kv { display: grid; grid-template-columns: auto 1fr; gap: 8px 18px; }
-  .kv dt { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); }
-  .kv dd {
-    font-family: var(--mono); font-size: 13px; margin: 0; color: var(--ink);
-    text-align: right; font-variant-numeric: tabular-nums;
+  .panel h3 .tag {
+    font-size: 9px;
+    color: var(--ink-dim);
+    background: var(--bg-3);
+    padding: 2px 6px;
+    border-radius: 2px;
   }
 
+  .kv-table { width: 100%; border-collapse: collapse; }
+  .kv-table tr td { padding: 7px 0; border-bottom: 1px dashed var(--line); font-family: var(--mono); font-size: 12px; }
+  .kv-table tr:last-child td { border-bottom: none; }
+  .kv-table td.k { color: var(--ink-soft); width: 50%; }
+  .kv-table td.v { color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
+  .kv-table td.v .dim { color: var(--ink-dim); }
+  .kv-table td.v .acc { color: var(--accent); }
+
+  /* ---------- Status toast ---------- */
   #status {
-    position: fixed; bottom: 24px; right: 24px;
-    background: var(--ink); color: var(--bg-card);
-    font-family: var(--mono); font-size: 12px;
-    padding: 12px 16px; border-left: 3px solid var(--accent);
-    transform: translateY(120%); transition: transform 0.3s ease;
-    max-width: 360px; z-index: 100;
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--bg-2);
+    color: var(--ink);
+    border: 1px solid var(--line-2);
+    border-left: 3px solid var(--accent);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 12px 18px;
+    border-radius: 3px;
+    transform: translateY(150%);
+    transition: transform 0.3s ease;
+    max-width: 360px;
+    z-index: 200;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
   }
   #status.show { transform: translateY(0); }
-  #status.error { border-left-color: #e63946; }
+  #status.error { border-left-color: var(--danger); }
+  #status.warn  { border-left-color: var(--warn); }
 
-  footer {
-    max-width: 1320px; margin: 64px auto 32px; padding: 24px 32px 0;
-    border-top: 1px solid var(--line); font-family: var(--mono);
-    font-size: 10px; color: var(--ink-soft); letter-spacing: 0.06em;
-    text-transform: uppercase; display: flex; justify-content: space-between;
-    flex-wrap: wrap; gap: 12px;
+  /* ---------- Initial loading overlay ---------- */
+  #boot {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 300;
+    flex-direction: column;
+    gap: 16px;
+    transition: opacity 0.3s, visibility 0.3s;
+  }
+  #boot.hide { opacity: 0; visibility: hidden; }
+  #boot .ring {
+    width: 32px; height: 32px;
+    border: 2px solid var(--line-2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  #boot .label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+  }
+  #boot .sub {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-dim);
+  }
+
+  /* ---------- Subtle scanline texture for the dashboard feel ---------- */
+  .container::before {
+    content: "";
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, rgba(255,255,255,0.01) 0 1px, transparent 1px 3px);
+    pointer-events: none;
+    z-index: 1;
   }
 </style>
 </head>
 <body>
 
-<header class="masthead">
-  <div class="masthead-inner">
-    <div class="logo">Image Ops<span class="dot">.</span></div>
-    <div class="meta">
-      <div><span class="live-dot"></span>Auto-refresh · <span id="next-refresh">—</span></div>
-      <div>Last sync · <span id="last-sync">—</span></div>
+<div id="boot">
+  <div class="ring"></div>
+  <div class="label">Loading dataset</div>
+  <div class="sub" id="boot-sub">Fetching from Metabase…</div>
+</div>
+
+<div class="topbar">
+  <div class="brand">
+    <span class="pulse"></span>
+    <span class="name">IMAGE_OPS</span>
+    <span class="sep">/</span>
+    <span class="env">LIVE</span>
+  </div>
+  <div class="meta">
+    <div class="meta-item"><span class="k">last_sync</span><span class="v" id="last-sync">—</span></div>
+    <div class="meta-item"><span class="k">next_refresh</span><span class="v" id="next-refresh">—</span></div>
+    <div class="meta-item"><span class="k">rows</span><span class="v" id="rows-total">—</span></div>
+  </div>
+  <div class="actions">
+    <button class="btn btn-ghost" id="apply-btn" title="Re-apply current filters">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8h10M8 3l5 5-5 5"/></svg>
+      Apply
+    </button>
+    <button class="btn btn-primary" id="sync-btn" title="Force fresh fetch from Metabase">
+      <svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2v3h-3"/></svg>
+      Sync
+    </button>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="page-head">
+    <div>
+      <div class="crumb">Dashboard <span class="accent">/</span> Catalog Operations</div>
+      <h1>Throughput overview</h1>
+    </div>
+    <div class="right-stats">
+      <div class="stat"><div class="l">Matched</div><div class="v" id="hs-matched">—</div></div>
+      <div class="stat"><div class="l">Total</div><div class="v" id="hs-total">—</div></div>
+      <div class="stat"><div class="l">Coverage</div><div class="v" id="hs-cov">—</div></div>
     </div>
   </div>
-</header>
 
-<section class="title-block">
-  <div class="eyebrow">Operations dashboard / live</div>
-  <h1>Catalog <em>throughput</em>,<br/>at a glance.</h1>
-  <p class="subtitle">Distinct SKU coverage, image volume, and editor actions across the imaging pipeline. Pulled hourly from the Metabase warehouse — slice by enterprise, account type, or any window you want.</p>
-</section>
-
-<section class="filter-rail">
-  <div class="rail-card">
-    <div class="field">
-      <label><span class="num">01</span>Date range</label>
+  <!-- Filters -->
+  <div class="filters">
+    <div class="f-group">
+      <div class="f-label">Date range · createdDate</div>
       <div class="presets" id="presets">
         <button class="chip" data-preset="this_week">This week</button>
         <button class="chip" data-preset="last_week">Last week</button>
         <button class="chip" data-preset="this_month">This month</button>
         <button class="chip" data-preset="last_month">Last month</button>
-        <button class="chip" data-preset="last_3_weeks">Last 3 weeks</button>
-        <button class="chip" data-preset="last_3_months">Last 3 months</button>
+        <button class="chip" data-preset="last_3_weeks">Last 3w</button>
+        <button class="chip" data-preset="last_3_months">Last 3m</button>
         <button class="chip active" data-preset="custom">Custom</button>
       </div>
       <div class="date-inputs">
-        <input type="date" id="from" />
-        <input type="date" id="to" />
+        <input type="date" id="from" class="field" />
+        <span class="dash">→</span>
+        <input type="date" id="to"   class="field" />
       </div>
     </div>
 
-    <div class="field">
-      <label><span class="num">02</span>Enterprise</label>
-      <select id="enterprise"><option value="">All enterprises</option></select>
+    <div class="f-group">
+      <div class="f-label">Enterprise</div>
+      <select id="enterprise" class="field"><option value="">All enterprises</option></select>
     </div>
 
-    <div class="field">
-      <label><span class="num">03</span>Account type</label>
-      <select id="account_type"><option value="">All account types</option></select>
+    <div class="f-group">
+      <div class="f-label">Account type</div>
+      <select id="account_type" class="field"><option value="">All account types</option></select>
     </div>
+  </div>
 
-    <div class="field">
-      <label><span class="num">04</span>Run</label>
-      <div class="actions">
-        <button class="primary" id="apply">Apply</button>
-        <button class="ghost" id="sync" title="Force fresh fetch from Metabase">Sync</button>
+  <!-- KPI row -->
+  <div class="kpi-row">
+    <div class="kpi" data-tone="1">
+      <div class="kpi-head">
+        <div class="kpi-title">Distinct SKUs</div>
+        <div class="kpi-id">KPI_01</div>
+      </div>
+      <div class="kpi-value loading" id="m-sku">—</div>
+      <div class="kpi-foot">
+        <span>unique sku_id</span>
+        <span class="badge" id="m-sku-extra">—</span>
+      </div>
+    </div>
+    <div class="kpi" data-tone="2">
+      <div class="kpi-head">
+        <div class="kpi-title">Distinct images</div>
+        <div class="kpi-id">KPI_02</div>
+      </div>
+      <div class="kpi-value loading" id="m-img">—</div>
+      <div class="kpi-foot">
+        <span>unique image_id</span>
+        <span class="badge" id="m-img-extra">—</span>
+      </div>
+    </div>
+    <div class="kpi" data-tone="3">
+      <div class="kpi-head">
+        <div class="kpi-title">Edited images</div>
+        <div class="kpi-id">KPI_03</div>
+      </div>
+      <div class="kpi-value loading" id="m-edit">—</div>
+      <div class="kpi-foot">
+        <span>image_action ≠ null</span>
+        <span class="badge" id="m-edit-extra">—</span>
       </div>
     </div>
   </div>
-</section>
 
-<section class="metrics">
-  <div class="metric accent">
-    <div class="index">i.</div>
-    <div class="label">Distinct SKU count</div>
-    <div class="value" id="m-sku"><span class="skel"></span></div>
-    <div class="foot"><span>Unique sku_id</span><span id="m-sku-pct">—</span></div>
+  <!-- Info panels -->
+  <div class="info-grid">
+    <div class="panel">
+      <h3>Active filters <span class="tag">FILTER_STATE</span></h3>
+      <table class="kv-table">
+        <tr><td class="k">date.from</td><td class="v" id="d-from">—</td></tr>
+        <tr><td class="k">date.to</td><td class="v" id="d-to">—</td></tr>
+        <tr><td class="k">enterprise_name</td><td class="v" id="d-ent">All</td></tr>
+        <tr><td class="k">account_type</td><td class="v" id="d-acc">All</td></tr>
+      </table>
+    </div>
+    <div class="panel">
+      <h3>Runtime <span class="tag">META</span></h3>
+      <table class="kv-table">
+        <tr><td class="k">data.source</td><td class="v"><span class="dim">metabase / public_csv</span></td></tr>
+        <tr><td class="k">cache.ttl</td><td class="v">60 min</td></tr>
+        <tr><td class="k">cache.source</td><td class="v" id="d-cache-src">—</td></tr>
+        <tr><td class="k">payload.version</td><td class="v" id="d-version">—</td></tr>
+      </table>
+    </div>
   </div>
-  <div class="metric accent">
-    <div class="index">ii.</div>
-    <div class="label">Distinct image count</div>
-    <div class="value" id="m-img"><span class="skel"></span></div>
-    <div class="foot"><span>Unique image_id</span><span id="m-img-rows">—</span></div>
-  </div>
-  <div class="metric accent">
-    <div class="index">iii.</div>
-    <div class="label">Edited images</div>
-    <div class="value" id="m-edit"><span class="skel"></span></div>
-    <div class="foot"><span>image_action ≠ null</span><span id="m-edit-rate">—</span></div>
-  </div>
-</section>
 
-<section class="detail-strip">
-  <div class="panel">
-    <h3>Run context</h3>
-    <dl class="kv">
-      <dt>Rows matched</dt><dd id="d-rows">—</dd>
-      <dt>Total rows in source</dt><dd id="d-total">—</dd>
-      <dt>Source</dt><dd>Metabase · public CSV</dd>
-      <dt>Cache TTL</dt><dd>60 minutes</dd>
-      <dt>From cache</dt><dd id="d-cache">—</dd>
-    </dl>
-  </div>
-  <div class="panel">
-    <h3>Active filters</h3>
-    <dl class="kv">
-      <dt>From</dt><dd id="d-from">—</dd>
-      <dt>To</dt><dd id="d-to">—</dd>
-      <dt>Enterprise</dt><dd id="d-ent">All</dd>
-      <dt>Account type</dt><dd id="d-acc">All</dd>
-    </dl>
-  </div>
-</section>
-
-<footer>
-  <span>Image Operations Dashboard · v1.0</span>
-  <span>Data refreshes hourly · Metabase public source</span>
-</footer>
+</div>
 
 <div id="status"></div>
 
 <script>
+  // ---------- Config ----------
   const API = '/api/metrics';
-  const REFRESH_MS = 60 * 60 * 1000; // 1 hour
+  const REFRESH_MS = 60 * 60 * 1000;          // 1h auto-refresh
+  const LS_KEY = 'imgops:payload:v1';
+  const LS_FILTERS = 'imgops:filters:v1';
+  const STALE_AFTER_MS = 60 * 60 * 1000;      // older than this and we silently refetch
+
+  let payload = null;       // { columns, rows, filterOptions, fetchedAt, ... }
   let refreshTimer = null;
   let countdownTimer = null;
   let nextRefreshAt = null;
 
+  // Slim row schema (matches API): [image_id, sku_id, date, hasAction(0|1), enterprise, account_type]
+  const COL = { IMG: 0, SKU: 1, DATE: 2, ACTION: 3, ENT: 4, ACC: 5 };
+
+  // ---------- DOM ----------
   const el = id => document.getElementById(id);
+  const $boot = el('boot');
+  const $bootSub = el('boot-sub');
   const fromInput = el('from'), toInput = el('to');
   const entSel = el('enterprise'), accSel = el('account_type');
-  const applyBtn = el('apply'), syncBtn = el('sync');
+  const applyBtn = el('apply-btn'), syncBtn = el('sync-btn');
   const lastSyncEl = el('last-sync'), nextRefreshEl = el('next-refresh');
   const status = el('status');
 
-  function fmt(n) {
-    if (n === null || n === undefined) return '—';
-    return new Intl.NumberFormat('en-US').format(n);
-  }
-  function pad(n) { return String(n).padStart(2, '0'); }
-  function toISO(d) { return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
-  function showStatus(msg, isError) {
+  // ---------- Helpers ----------
+  const fmt = n => (n === null || n === undefined) ? '—' : new Intl.NumberFormat('en-US').format(n);
+  const pad = n => String(n).padStart(2, '0');
+  const toISO = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+
+  function showStatus(msg, kind) {
     status.textContent = msg;
-    status.classList.toggle('error', !!isError);
+    status.classList.remove('error', 'warn');
+    if (kind === 'error') status.classList.add('error');
+    if (kind === 'warn')  status.classList.add('warn');
     status.classList.add('show');
     clearTimeout(showStatus._t);
     showStatus._t = setTimeout(() => status.classList.remove('show'), 3500);
   }
 
+  // ---------- Date presets ----------
   function presetRange(name) {
     const today = new Date();
     today.setHours(0,0,0,0);
@@ -358,7 +631,7 @@
     let from, to;
 
     if (name === 'this_week') {
-      const dow = (d.getDay() + 6) % 7; // Monday-start
+      const dow = (d.getDay() + 6) % 7;
       from = new Date(d); from.setDate(d.getDate() - dow);
       to = new Date(from); to.setDate(from.getDate() + 6);
     } else if (name === 'last_week') {
@@ -397,16 +670,40 @@
     }
   }
 
-  document.querySelectorAll('.chip').forEach(c => {
-    c.addEventListener('click', () => setPreset(c.dataset.preset));
-  });
-  [fromInput, toInput].forEach(inp => {
-    inp.addEventListener('input', () => setPreset('custom'));
-  });
+  // ---------- Filter persistence ----------
+  function persistFilters() {
+    try {
+      const f = {
+        from: fromInput.value, to: toInput.value,
+        enterprise: entSel.value, account_type: accSel.value,
+        preset: document.querySelector('.chip.active')?.dataset.preset || 'custom',
+      };
+      localStorage.setItem(LS_FILTERS, JSON.stringify(f));
+    } catch (e) { /* localStorage might be full or disabled */ }
+  }
+  function restoreFilters() {
+    try {
+      const raw = localStorage.getItem(LS_FILTERS);
+      if (!raw) return false;
+      const f = JSON.parse(raw);
+      if (f.preset && f.preset !== 'custom') {
+        setPreset(f.preset);
+      } else {
+        setPreset('custom');
+        if (f.from) fromInput.value = f.from;
+        if (f.to)   toInput.value = f.to;
+      }
+      // Selects are populated after data loads — defer their value setting
+      restoreFilters._pendingEnt = f.enterprise || '';
+      restoreFilters._pendingAcc = f.account_type || '';
+      return true;
+    } catch (e) { return false; }
+  }
 
-  function fillSelect(sel, values, current) {
-    const keep = current || sel.value;
-    sel.innerHTML = `<option value="">All ${sel.id === 'enterprise' ? 'enterprises' : 'account types'}</option>`;
+  // ---------- Filter option population ----------
+  function fillSelect(sel, values) {
+    const keep = sel.value || (sel === entSel ? restoreFilters._pendingEnt : restoreFilters._pendingAcc) || '';
+    sel.innerHTML = `<option value="">All ${sel === entSel ? 'enterprises' : 'account types'}</option>`;
     for (const v of values) {
       const opt = document.createElement('option');
       opt.value = v; opt.textContent = v;
@@ -415,70 +712,163 @@
     if (keep && values.includes(keep)) sel.value = keep;
   }
 
-  async function fetchData({ force = false } = {}) {
-    const params = new URLSearchParams();
-    if (fromInput.value) params.set('from', fromInput.value);
-    if (toInput.value) params.set('to', toInput.value);
-    if (entSel.value) params.set('enterprise', entSel.value);
-    if (accSel.value) params.set('account_type', accSel.value);
-    if (force) params.set('refresh', '1');
+  // ---------- Client-side filtering & aggregation ----------
+  function compute() {
+    if (!payload) return null;
+    const from = fromInput.value || null;
+    const to   = toInput.value   || null;
+    const ent  = entSel.value    || null;
+    const acc  = accSel.value    || null;
 
-    applyBtn.disabled = true; syncBtn.disabled = true;
-    applyBtn.textContent = 'Loading…';
+    const rows = payload.rows;
+    const distinctSku = new Set();
+    const distinctImg = new Set();
+    let editedCount = 0;
+    const editedImgIds = new Set();
+    let matched = 0;
 
+    // Hot loop: kept tight, no closures, string compares only
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      const d = r[COL.DATE];
+      if ((from || to) && !d) continue;
+      if (from && d < from) continue;
+      if (to && d > to) continue;
+      if (ent && r[COL.ENT] !== ent) continue;
+      if (acc && r[COL.ACC] !== acc) continue;
+
+      matched++;
+      const sku = r[COL.SKU];
+      if (sku) distinctSku.add(sku);
+      const img = r[COL.IMG];
+      if (img) distinctImg.add(img);
+      if (r[COL.ACTION] === 1) {
+        editedCount++;
+        if (img) editedImgIds.add(img);
+      }
+    }
+    return {
+      matched,
+      total: rows.length,
+      distinctSku: distinctSku.size,
+      distinctImg: distinctImg.size,
+      editedCount,
+      distinctEditedImg: editedImgIds.size,
+    };
+  }
+
+  function render() {
+    if (!payload) return;
+    const t0 = performance.now();
+    const r = compute();
+    const elapsed = (performance.now() - t0).toFixed(1);
+
+    // KPI values
+    el('m-sku').textContent = fmt(r.distinctSku);
+    el('m-sku').classList.remove('loading');
+    el('m-img').textContent = fmt(r.distinctImg);
+    el('m-img').classList.remove('loading');
+    el('m-edit').textContent = fmt(r.editedCount);
+    el('m-edit').classList.remove('loading');
+
+    // KPI badges
+    const imgPerSku = r.distinctSku > 0 ? (r.distinctImg / r.distinctSku).toFixed(1) : '0';
+    el('m-sku-extra').textContent  = `${imgPerSku} img/sku`;
+    el('m-img-extra').textContent  = `${fmt(r.matched)} rows`;
+    const editRate = r.distinctImg > 0 ? Math.round((r.distinctEditedImg / r.distinctImg) * 100) : 0;
+    el('m-edit-extra').textContent = `${editRate}% rate`;
+
+    // Header right-side
+    el('hs-matched').textContent = fmt(r.matched);
+    el('hs-total').textContent   = fmt(r.total);
+    const cov = r.total > 0 ? Math.round((r.matched / r.total) * 100) : 0;
+    el('hs-cov').textContent = `${cov}%`;
+
+    // Filter state panel
+    el('d-from').textContent = fromInput.value || '—';
+    el('d-to').textContent   = toInput.value   || '—';
+    el('d-ent').textContent  = entSel.value    || 'All';
+    el('d-acc').textContent  = accSel.value    || 'All';
+
+    persistFilters();
+    console.debug(`Recomputed in ${elapsed}ms over ${r.total} rows`);
+  }
+
+  function renderMeta() {
+    if (!payload) return;
+    el('rows-total').textContent = fmt(payload.totalRows);
+    const t = new Date(payload.fetchedAt);
+    lastSyncEl.textContent = t.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+      + ' · ' + t.toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
+    el('d-cache-src').textContent = payload._loadedFrom || '—';
+    el('d-version').textContent = `v${payload.version}`;
+  }
+
+  // ---------- Load / cache ----------
+  function loadFromCache() {
     try {
-      const res = await fetch(`${API}?${params.toString()}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error || 'Unknown error');
-      render(data);
-      scheduleRefresh();
-      showStatus(force ? 'Synced from source.' : 'Updated.');
-    } catch (err) {
-      showStatus(`Error: ${err.message}`, true);
-      console.error(err);
-    } finally {
-      applyBtn.disabled = false; syncBtn.disabled = false;
-      applyBtn.textContent = 'Apply';
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return null;
+      const p = JSON.parse(raw);
+      if (!p || !p.rows) return null;
+      return p;
+    } catch (e) { return null; }
+  }
+  function saveToCache(p) {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(p));
+    } catch (e) {
+      // localStorage may be full — clear it and retry once
+      try {
+        localStorage.removeItem(LS_KEY);
+        localStorage.setItem(LS_KEY, JSON.stringify(p));
+      } catch (e2) {
+        showStatus('Cache full — keeping data in memory only.', 'warn');
+      }
     }
   }
 
-  function render(data) {
-    const m = data.metrics;
-    el('m-sku').textContent = fmt(m.distinctSkuCount);
-    el('m-img').textContent = fmt(m.distinctImageCount);
-    el('m-edit').textContent = fmt(m.editedImageCount);
+  async function fetchFromServer({ force = false } = {}) {
+    syncBtn.disabled = true;
+    syncBtn.classList.add('syncing');
+    applyBtn.disabled = true;
+    const t0 = performance.now();
 
-    const editRate = m.distinctImageCount > 0
-      ? Math.round((m.distinctEditedImageCount / m.distinctImageCount) * 100)
-      : 0;
-    el('m-edit-rate').textContent = `${editRate}% of images`;
-    el('m-img-rows').textContent = `${fmt(data.rowsConsidered)} rows`;
-    el('m-sku-pct').textContent = m.distinctImageCount > 0
-      ? `${(m.distinctImageCount / Math.max(m.distinctSkuCount, 1)).toFixed(1)} img / sku`
-      : '—';
+    try {
+      const url = force ? `${API}?refresh=1` : API;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Unknown error');
 
-    el('d-rows').textContent  = fmt(data.rowsConsidered);
-    el('d-total').textContent = fmt(data.totalRows);
-    el('d-cache').textContent = data.fromCache ? 'yes' : 'no (fresh)';
-    el('d-from').textContent  = data.appliedFilters.from || '—';
-    el('d-to').textContent    = data.appliedFilters.to || '—';
-    el('d-ent').textContent   = (data.appliedFilters.enterprise && data.appliedFilters.enterprise.length)
-      ? data.appliedFilters.enterprise.join(', ') : 'All';
-    el('d-acc').textContent   = (data.appliedFilters.account_type && data.appliedFilters.account_type.length)
-      ? data.appliedFilters.account_type.join(', ') : 'All';
+      data._loadedFrom = data.fromCache ? 'server_cache' : 'network';
+      payload = data;
+      saveToCache(payload);
 
-    fillSelect(entSel, data.filterOptions.enterprise_name || [], entSel.value);
-    fillSelect(accSel, data.filterOptions.account_type    || [], accSel.value);
+      fillSelect(entSel, payload.filterOptions.enterprise_name || []);
+      fillSelect(accSel, payload.filterOptions.account_type    || []);
 
-    const t = new Date(data.lastFetched);
-    lastSyncEl.textContent = t.toLocaleString(undefined, { hour: '2-digit', minute:'2-digit', day:'2-digit', month:'short' });
+      renderMeta();
+      render();
+      scheduleAutoRefresh();
+      const elapsed = ((performance.now() - t0) / 1000).toFixed(1);
+      showStatus(`Loaded ${fmt(payload.totalRows)} rows in ${elapsed}s`);
+    } catch (err) {
+      showStatus(`Sync failed: ${err.message}`, 'error');
+      console.error(err);
+    } finally {
+      syncBtn.disabled = false;
+      syncBtn.classList.remove('syncing');
+      applyBtn.disabled = false;
+      $boot.classList.add('hide');
+    }
   }
 
-  function scheduleRefresh() {
+  // ---------- Auto-refresh ----------
+  function scheduleAutoRefresh() {
     if (refreshTimer) clearTimeout(refreshTimer);
     nextRefreshAt = Date.now() + REFRESH_MS;
-    refreshTimer = setTimeout(() => fetchData({ force: false }), REFRESH_MS);
+    refreshTimer = setTimeout(() => fetchFromServer({ force: false }), REFRESH_MS);
     tickCountdown();
   }
   function tickCountdown() {
@@ -486,7 +876,7 @@
     const update = () => {
       if (!nextRefreshAt) { nextRefreshEl.textContent = '—'; return; }
       const ms = nextRefreshAt - Date.now();
-      if (ms <= 0) { nextRefreshEl.textContent = 'now'; return; }
+      if (ms <= 0) { nextRefreshEl.textContent = '00:00'; return; }
       const m = Math.floor(ms / 60000), s = Math.floor((ms % 60000) / 1000);
       nextRefreshEl.textContent = `${pad(m)}:${pad(s)}`;
     };
@@ -494,12 +884,51 @@
     countdownTimer = setInterval(update, 1000);
   }
 
-  applyBtn.addEventListener('click', () => fetchData({ force: false }));
-  syncBtn.addEventListener('click',  () => fetchData({ force: true }));
+  // ---------- Wire up ----------
+  document.querySelectorAll('.chip').forEach(c => {
+    c.addEventListener('click', () => { setPreset(c.dataset.preset); render(); });
+  });
+  [fromInput, toInput].forEach(inp => {
+    inp.addEventListener('change', () => { setPreset('custom'); render(); });
+  });
+  entSel.addEventListener('change', render);
+  accSel.addEventListener('change', render);
+  applyBtn.addEventListener('click', render);
+  syncBtn.addEventListener('click', () => fetchFromServer({ force: true }));
 
-  // Default preset: last 3 months
+  // Default preset before restoring saved filters
   setPreset('last_3_months');
-  fetchData({ force: false });
+  restoreFilters();
+
+  // ---------- Boot sequence ----------
+  // Step 1: try localStorage. If present, render immediately.
+  // Step 2: in the background, if stale (>1h), silently refresh from server.
+  // Step 3: schedule the hourly auto-refresh.
+  (async function boot() {
+    const cached = loadFromCache();
+    const now = Date.now();
+
+    if (cached) {
+      cached._loadedFrom = 'browser_cache';
+      payload = cached;
+      fillSelect(entSel, payload.filterOptions.enterprise_name || []);
+      fillSelect(accSel, payload.filterOptions.account_type    || []);
+      renderMeta();
+      render();
+      $boot.classList.add('hide');
+      scheduleAutoRefresh();
+
+      // Silently refresh if stale
+      const fetchedAt = new Date(payload.fetchedAt).getTime();
+      if (isNaN(fetchedAt) || (now - fetchedAt) > STALE_AFTER_MS) {
+        showStatus('Cache is stale — refreshing in background…', 'warn');
+        fetchFromServer({ force: false }); // no await — background
+      }
+    } else {
+      $bootSub.textContent = 'First load — this may take up to 30s';
+      await fetchFromServer({ force: false });
+    }
+  })();
 </script>
 
 </body>
