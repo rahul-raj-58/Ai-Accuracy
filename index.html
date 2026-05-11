@@ -1,1198 +1,676 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>SKU & Image Analytics — Spyne</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,800&family=JetBrains+Mono:wght@400;500&family=Inter+Tight:wght@400;500;600&display=swap"
-      rel="stylesheet"
-    />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <style>
-      :root {
-        --bg: #0e0d0b;
-        --panel: #181613;
-        --panel-2: #1f1c18;
-        --ink: #f3ece1;
-        --ink-dim: #b9aF9e;
-        --ink-faint: #6b6358;
-        --accent: #ffd166;
-        --accent-2: #ef476f;
-        --accent-3: #06d6a0;
-        --border: #2b2722;
-        --radius: 14px;
-        --shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset,
-          0 10px 30px rgba(0, 0, 0, 0.35);
-      }
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Image Operations · Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,800&family=JetBrains+Mono:wght@300;400;500;600&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f6f3ec;
+    --bg-card: #fffdf8;
+    --ink: #14110d;
+    --ink-soft: #5c574f;
+    --line: #1a17120f;
+    --line-strong: #1a17122a;
+    --accent: #d4451f;
+    --accent-soft: #f1c8b7;
+    --ok: #2f6d3a;
+    --display: 'Fraunces', 'Times New Roman', serif;
+    --body: 'Inter Tight', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', 'Menlo', monospace;
+  }
 
-      * { box-sizing: border-box; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--body);
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    background-image:
+      radial-gradient(circle at 1px 1px, #1a17120c 1px, transparent 0);
+    background-size: 24px 24px;
+  }
 
-      html, body {
-        margin: 0;
-        padding: 0;
-        background: var(--bg);
-        color: var(--ink);
-        font-family: "Inter Tight", system-ui, sans-serif;
-        font-size: 14px;
-        min-height: 100vh;
-      }
+  /* ---------- Header ---------- */
+  header.masthead {
+    border-bottom: 1px solid var(--line-strong);
+    background: var(--bg);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    backdrop-filter: blur(6px);
+  }
+  .masthead-inner {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 18px 32px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 16px;
+  }
+  .masthead .logo {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 28px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-style: italic;
+  }
+  .masthead .logo .dot { color: var(--accent); }
+  .masthead .meta {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-soft);
+    text-align: right;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    line-height: 1.6;
+  }
+  .meta .live-dot {
+    display: inline-block; width: 7px; height: 7px;
+    background: var(--ok); border-radius: 50%;
+    margin-right: 6px; transform: translateY(-1px);
+    animation: pulse 2.2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 #2f6d3a55; }
+    50%      { opacity: 0.6; box-shadow: 0 0 0 6px #2f6d3a00; }
+  }
 
-      body {
-        background-image:
-          radial-gradient(1200px 600px at 80% -10%, rgba(255, 209, 102, 0.07), transparent 60%),
-          radial-gradient(900px 500px at 0% 100%, rgba(6, 214, 160, 0.05), transparent 60%);
-      }
+  /* ---------- Title block ---------- */
+  .title-block {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 48px 32px 24px;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ink-soft);
+    margin-bottom: 16px;
+  }
+  .eyebrow::before {
+    content: "§"; color: var(--accent); margin-right: 8px; font-family: var(--display); font-style: italic;
+  }
+  h1 {
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: clamp(40px, 6vw, 76px);
+    line-height: 0.95;
+    letter-spacing: -0.035em;
+    margin: 0 0 8px;
+  }
+  h1 em { font-style: italic; font-weight: 300; color: var(--accent); }
+  .subtitle {
+    font-size: 16px;
+    color: var(--ink-soft);
+    max-width: 640px;
+    line-height: 1.55;
+  }
 
-      .wrap {
-        max-width: 1280px;
-        margin: 0 auto;
-        padding: 40px 28px 80px;
-      }
+  /* ---------- Filter rail ---------- */
+  .filter-rail {
+    max-width: 1320px;
+    margin: 32px auto 0;
+    padding: 0 32px;
+  }
+  .rail-card {
+    background: var(--bg-card);
+    border: 1px solid var(--line-strong);
+    padding: 24px;
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr auto;
+    gap: 20px;
+    align-items: end;
+  }
+  @media (max-width: 980px) {
+    .rail-card { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 560px) {
+    .rail-card { grid-template-columns: 1fr; }
+  }
 
-      header {
-        display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-        gap: 24px;
-        margin-bottom: 28px;
-        padding-bottom: 20px;
-        border-bottom: 1px solid var(--border);
-      }
-      header h1 {
-        font-family: "Fraunces", serif;
-        font-weight: 800;
-        font-size: 44px;
-        line-height: 1.0;
-        margin: 0 0 6px;
-        letter-spacing: -0.02em;
-      }
-      header h1 em {
-        font-style: italic;
-        font-weight: 400;
-        color: var(--accent);
-      }
-      header .sub {
-        color: var(--ink-dim);
-        font-size: 13px;
-        letter-spacing: 0.02em;
-      }
-      header .meta {
-        font-family: "JetBrains Mono", monospace;
-        font-size: 11px;
-        color: var(--ink-faint);
-        text-align: right;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-      }
-      header .meta .dot {
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: var(--accent-3);
-        margin-right: 6px;
-        box-shadow: 0 0 12px var(--accent-3);
-      }
-      header .refresh-bar {
-        margin-top: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: 8px;
-        font-family: "JetBrains Mono", monospace;
-        font-size: 10px;
-      }
-      header .refresh-bar .timer-label {
-        color: var(--ink-faint);
-        letter-spacing: 0.1em;
-      }
-      header .refresh-bar .timer {
-        color: var(--accent);
-        font-variant-numeric: tabular-nums;
-        font-weight: 500;
-        letter-spacing: 0.05em;
-      }
-      header .refresh-bar .refresh-now {
-        background: transparent;
-        border: 1px solid var(--border);
-        color: var(--ink-dim);
-        width: 26px;
-        height: 26px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 14px;
-        line-height: 1;
-        padding: 0;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        transition: transform 0.3s, color 0.15s, border-color 0.15s;
-      }
-      header .refresh-bar .refresh-now:hover {
-        color: var(--accent);
-        border-color: var(--accent);
-      }
-      header .refresh-bar .refresh-now.spinning {
-        transform: rotate(360deg);
-        color: var(--accent);
-      }
+  .field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .field label {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-soft);
+  }
+  .field label .num {
+    color: var(--accent); font-family: var(--display); font-style: italic; font-weight: 600;
+    margin-right: 6px;
+  }
 
-      .filters {
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: 22px;
-        display: grid;
-        grid-template-columns: repeat(5, 1fr) auto;
-        gap: 16px;
-        align-items: end;
-        margin-bottom: 24px;
-        box-shadow: var(--shadow);
-      }
-      .field { display: flex; flex-direction: column; gap: 6px; }
-      .field label {
-        font-family: "JetBrains Mono", monospace;
-        font-size: 10px;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        color: var(--ink-faint);
-      }
-      .field input, .field select {
-        background: var(--panel-2);
-        color: var(--ink);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 10px 12px;
-        font: inherit;
-        font-size: 13px;
-        outline: none;
-        transition: border-color 0.15s, background 0.15s;
-      }
-      .field input:focus, .field select:focus {
-        border-color: var(--accent);
-        background: #211e19;
-      }
-      .field input::-webkit-calendar-picker-indicator { filter: invert(1) opacity(0.6); }
+  /* Date preset chips */
+  .presets {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin-bottom: 8px;
+  }
+  .chip {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 6px 10px;
+    background: transparent;
+    border: 1px solid var(--line-strong);
+    cursor: pointer;
+    color: var(--ink);
+    transition: all 0.15s ease;
+    letter-spacing: 0.02em;
+  }
+  .chip:hover { background: var(--ink); color: var(--bg); }
+  .chip.active {
+    background: var(--ink); color: var(--bg-card); border-color: var(--ink);
+  }
+  .date-inputs {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  }
+  .date-inputs input {
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 10px 12px;
+    border: 1px solid var(--line-strong);
+    background: var(--bg);
+    color: var(--ink);
+    border-radius: 0;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .date-inputs input:focus { border-color: var(--accent); }
+  .date-inputs input:disabled { opacity: 0.5; cursor: not-allowed; }
 
-      button.apply {
-        background: var(--accent);
-        color: #2a200a;
-        border: none;
-        padding: 11px 22px;
-        border-radius: 8px;
-        font-weight: 600;
-        font-family: inherit;
-        font-size: 13px;
-        letter-spacing: 0.02em;
-        cursor: pointer;
-        transition: transform 0.1s, box-shadow 0.15s;
-      }
-      button.apply:hover {
-        box-shadow: 0 6px 20px rgba(255, 209, 102, 0.35);
-        transform: translateY(-1px);
-      }
-      button.reset {
-        background: transparent;
-        color: var(--ink-dim);
-        border: 1px solid var(--border);
-        padding: 10px 16px;
-        border-radius: 8px;
-        font: inherit;
-        font-size: 13px;
-        cursor: pointer;
-      }
-      button.reset:hover { color: var(--ink); border-color: var(--ink-faint); }
+  select {
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 10px 12px;
+    border: 1px solid var(--line-strong);
+    background: var(--bg);
+    color: var(--ink);
+    border-radius: 0;
+    outline: none;
+    width: 100%;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%2314110d' fill='none' stroke-width='1.2'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+  }
+  select:focus { border-color: var(--accent); }
 
-      .stats {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 16px;
-        margin-bottom: 24px;
-      }
-      .stat {
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: 22px 24px;
-        position: relative;
-        overflow: hidden;
-        box-shadow: var(--shadow);
-      }
-      .stat::before {
-        content: "";
-        position: absolute;
-        top: 0; left: 0;
-        width: 3px; height: 100%;
-        background: var(--c, var(--accent));
-      }
-      .stat .label {
-        font-family: "JetBrains Mono", monospace;
-        font-size: 10px;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        color: var(--ink-faint);
-        margin-bottom: 10px;
-      }
-      .stat .value {
-        font-family: "Fraunces", serif;
-        font-weight: 600;
-        font-size: 42px;
-        line-height: 1;
-        letter-spacing: -0.02em;
-      }
-      .stat .hint {
-        margin-top: 6px;
-        font-size: 12px;
-        color: var(--ink-dim);
-      }
+  .actions { display: flex; gap: 8px; }
+  button.primary, button.ghost {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 12px 18px;
+    cursor: pointer;
+    border-radius: 0;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+  button.primary {
+    background: var(--accent);
+    color: var(--bg-card);
+    border: 1px solid var(--accent);
+  }
+  button.primary:hover { background: #b9381a; border-color: #b9381a; }
+  button.primary:disabled { opacity: 0.5; cursor: wait; }
+  button.ghost {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line-strong);
+  }
+  button.ghost:hover { background: var(--ink); color: var(--bg-card); }
 
-      .charts {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 20px;
-      }
-      .card {
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: 24px;
-        box-shadow: var(--shadow);
-      }
-      .card h2 {
-        font-family: "Fraunces", serif;
-        font-weight: 600;
-        font-size: 20px;
-        margin: 0 0 4px;
-        letter-spacing: -0.01em;
-      }
-      .card .desc {
-        font-size: 12px;
-        color: var(--ink-dim);
-        margin-bottom: 18px;
-      }
-      .chart-box { height: 280px; position: relative; }
+  /* ---------- Metrics ---------- */
+  .metrics {
+    max-width: 1320px;
+    margin: 32px auto 0;
+    padding: 0 32px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--line-strong);
+    border: 1px solid var(--line-strong);
+  }
+  @media (max-width: 880px) { .metrics { grid-template-columns: 1fr; } }
 
-      .chart-empty {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--ink-faint);
-        font-family: "JetBrains Mono", monospace;
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        pointer-events: none;
-      }
-      .chart-empty.hidden { display: none; }
+  .metric {
+    background: var(--bg-card);
+    padding: 36px 32px 32px;
+    position: relative;
+    overflow: hidden;
+  }
+  .metric .index {
+    position: absolute; top: 18px; right: 22px;
+    font-family: var(--display); font-style: italic; font-weight: 300;
+    font-size: 13px; color: var(--ink-soft);
+  }
+  .metric .label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 24px;
+  }
+  .metric .value {
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: clamp(48px, 6vw, 84px);
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .metric .value .skel {
+    display: inline-block;
+    width: 180px; height: 0.7em;
+    background: linear-gradient(90deg, #1a171210, #1a171225, #1a171210);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s linear infinite;
+  }
+  @keyframes shimmer {
+    0% { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+  }
+  .metric .foot {
+    margin-top: 18px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-soft);
+    border-top: 1px dashed var(--line-strong);
+    padding-top: 14px;
+    display: flex; justify-content: space-between;
+  }
+  .metric.accent::after {
+    content: ""; position: absolute; left: 0; bottom: 0;
+    width: 60px; height: 3px; background: var(--accent);
+  }
 
-      .error-banner {
-        background: linear-gradient(135deg, rgba(239, 71, 111, 0.12), rgba(239, 71, 111, 0.04));
-        border: 1px solid rgba(239, 71, 111, 0.4);
-        border-radius: var(--radius);
-        margin-bottom: 20px;
-        overflow: hidden;
-        animation: slideDown 0.3s ease-out;
-      }
-      .error-banner.warning {
-        background: linear-gradient(135deg, rgba(255, 209, 102, 0.12), rgba(255, 209, 102, 0.04));
-        border-color: rgba(255, 209, 102, 0.4);
-      }
-      @keyframes slideDown {
-        from { opacity: 0; transform: translateY(-8px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-      .error-banner-inner {
-        display: grid;
-        grid-template-columns: auto 1fr auto;
-        gap: 16px;
-        padding: 18px 22px;
-        align-items: start;
-      }
-      .error-icon {
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        background: var(--accent-2);
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        font-family: "Fraunces", serif;
-        font-size: 18px;
-        line-height: 1;
-        flex-shrink: 0;
-      }
-      .error-banner.warning .error-icon { background: var(--accent); color: #2a200a; }
-      .error-title {
-        font-weight: 600;
-        font-size: 14px;
-        margin-bottom: 4px;
-        color: var(--ink);
-      }
-      .error-message {
-        color: var(--ink-dim);
-        font-size: 13px;
-        line-height: 1.5;
-        word-break: break-word;
-      }
-      .error-details {
-        margin-top: 10px;
-        font-family: "JetBrains Mono", monospace;
-        font-size: 11px;
-      }
-      .error-details summary {
-        cursor: pointer;
-        color: var(--ink-faint);
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        user-select: none;
-      }
-      .error-details summary:hover { color: var(--ink-dim); }
-      .error-details pre {
-        margin-top: 8px;
-        padding: 10px 12px;
-        background: rgba(0, 0, 0, 0.3);
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        color: var(--ink-dim);
-        white-space: pre-wrap;
-        word-break: break-word;
-        max-height: 200px;
-        overflow: auto;
-      }
-      .error-dismiss {
-        background: transparent;
-        border: none;
-        color: var(--ink-faint);
-        font-size: 22px;
-        cursor: pointer;
-        line-height: 1;
-        padding: 0 4px;
-      }
-      .error-dismiss:hover { color: var(--ink); }
+  /* ---------- Detail strip ---------- */
+  .detail-strip {
+    max-width: 1320px;
+    margin: 32px auto 0;
+    padding: 0 32px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 720px) { .detail-strip { grid-template-columns: 1fr; } }
 
-      .footer-note {
-        margin-top: 28px;
-        padding-top: 18px;
-        border-top: 1px solid var(--border);
-        font-family: "JetBrains Mono", monospace;
-        font-size: 10px;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        color: var(--ink-faint);
-        display: flex;
-        justify-content: space-between;
-      }
+  .panel {
+    background: var(--bg-card);
+    border: 1px solid var(--line-strong);
+    padding: 24px;
+  }
+  .panel h3 {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0 0 18px;
+    font-weight: 500;
+  }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 8px 18px; }
+  .kv dt {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .kv dd {
+    font-family: var(--mono);
+    font-size: 13px;
+    margin: 0;
+    color: var(--ink);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
 
-      .toast {
-        position: fixed;
-        bottom: 24px;
-        right: 24px;
-        background: var(--accent-2);
-        color: white;
-        padding: 12px 18px;
-        border-radius: 8px;
-        font-size: 13px;
-        box-shadow: 0 10px 30px rgba(239, 71, 111, 0.4);
-        opacity: 0;
-        transform: translateY(10px);
-        transition: opacity 0.2s, transform 0.2s;
-        pointer-events: none;
-        z-index: 100;
-      }
-      .toast.show { opacity: 1; transform: translateY(0); }
+  /* ---------- Toast / status ---------- */
+  #status {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--ink);
+    color: var(--bg-card);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 12px 16px;
+    border-left: 3px solid var(--accent);
+    transform: translateY(120%);
+    transition: transform 0.3s ease;
+    max-width: 360px;
+    z-index: 100;
+  }
+  #status.show { transform: translateY(0); }
+  #status.error { border-left-color: #e63946; }
 
-      .loading {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(24, 22, 19, 0.6);
-        backdrop-filter: blur(2px);
-        border-radius: var(--radius);
-        font-family: "JetBrains Mono", monospace;
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        color: var(--ink-dim);
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.15s;
-      }
-      .loading.show { opacity: 1; pointer-events: all; }
+  /* ---------- Footer ---------- */
+  footer {
+    max-width: 1320px;
+    margin: 64px auto 32px;
+    padding: 24px 32px 0;
+    border-top: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-soft);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  }
+</style>
+</head>
+<body>
 
-      @media (max-width: 900px) {
-        .filters { grid-template-columns: 1fr 1fr; }
-        .stats { grid-template-columns: 1fr; }
-        header { flex-direction: column; align-items: flex-start; }
-        header h1 { font-size: 32px; }
-      }
-    </style>
-  </head>
-  <body>
-    <div class="wrap">
-      <header>
-        <div>
-          <h1>SKU &amp; Image <em>Analytics</em></h1>
-          <div class="sub">Day-wise distinct SKU, distinct image, and edited image counts.</div>
-        </div>
-        <div class="meta">
-          <span class="dot"></span><span id="status">Connected</span><br />
-          <span id="row-count">— rows</span>
-          <div class="refresh-bar">
-            <span class="timer-label">Next refresh in</span>
-            <span class="timer" id="timer">—:—:—</span>
-            <button class="refresh-now" id="refresh-now" title="Refresh now">↻</button>
-          </div>
-        </div>
-      </header>
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="logo">Image Ops<span class="dot">.</span></div>
+    <div class="meta">
+      <div><span class="live-dot"></span>Auto-refresh · <span id="next-refresh">—</span></div>
+      <div>Last sync · <span id="last-sync">—</span></div>
+    </div>
+  </div>
+</header>
 
-      <div class="error-banner" id="error-banner" hidden>
-        <div class="error-banner-inner">
-          <div class="error-icon">!</div>
-          <div class="error-content">
-            <div class="error-title" id="error-title">Something went wrong</div>
-            <div class="error-message" id="error-message"></div>
-            <details class="error-details" id="error-details" hidden>
-              <summary>Debug info</summary>
-              <pre id="error-debug"></pre>
-            </details>
-          </div>
-          <button class="error-dismiss" id="error-dismiss" title="Dismiss">×</button>
-        </div>
+<section class="title-block">
+  <div class="eyebrow">Operations dashboard / live</div>
+  <h1>Catalog <em>throughput</em>,<br/>at a glance.</h1>
+  <p class="subtitle">Distinct SKU coverage, image volume, and editor actions across the imaging pipeline. Pulled hourly from the Metabase warehouse — slice by enterprise, account type, or any window you want.</p>
+</section>
+
+<section class="filter-rail">
+  <div class="rail-card">
+    <div class="field">
+      <label><span class="num">01</span>Date range</label>
+      <div class="presets" id="presets">
+        <button class="chip" data-preset="this_week">This week</button>
+        <button class="chip" data-preset="last_week">Last week</button>
+        <button class="chip" data-preset="this_month">This month</button>
+        <button class="chip" data-preset="last_month">Last month</button>
+        <button class="chip" data-preset="last_3_weeks">Last 3 weeks</button>
+        <button class="chip" data-preset="last_3_months">Last 3 months</button>
+        <button class="chip active" data-preset="custom">Custom</button>
       </div>
-
-      <section class="filters">
-        <div class="field">
-          <label for="from">From</label>
-          <input type="date" id="from" />
-        </div>
-        <div class="field">
-          <label for="to">To</label>
-          <input type="date" id="to" />
-        </div>
-        <div class="field">
-          <label for="enterprise">Enterprise</label>
-          <select id="enterprise"><option value="">All</option></select>
-        </div>
-        <div class="field">
-          <label for="account_type">Account type</label>
-          <select id="account_type"><option value="">All</option></select>
-        </div>
-        <div class="field">
-          <label>&nbsp;</label>
-          <button class="reset" id="reset">Reset</button>
-        </div>
-        <button class="apply" id="apply">Apply</button>
-      </section>
-
-      <section class="stats">
-        <div class="stat" style="--c: var(--accent)">
-          <div class="label">Distinct SKUs</div>
-          <div class="value" id="total-sku">—</div>
-          <div class="hint">unique in selected range</div>
-        </div>
-        <div class="stat" style="--c: var(--accent-3)">
-          <div class="label">Distinct Images</div>
-          <div class="value" id="total-image">—</div>
-          <div class="hint">unique in selected range</div>
-        </div>
-        <div class="stat" style="--c: var(--accent-2)">
-          <div class="label">Edited Images</div>
-          <div class="value" id="total-edited">—</div>
-          <div class="hint">rows where image_action is set</div>
-        </div>
-      </section>
-
-      <section class="charts">
-        <div class="card">
-          <h2>Distinct SKUs · day-wise</h2>
-          <div class="desc">Unique SKUs recorded each day in the selected range.</div>
-          <div class="chart-box">
-            <canvas id="chart-sku"></canvas>
-            <div class="chart-empty hidden" id="empty-sku">No data in this range</div>
-            <div class="loading" id="loading-sku">Loading…</div>
-          </div>
-        </div>
-        <div class="card">
-          <h2>Distinct Images · day-wise</h2>
-          <div class="desc">Unique images recorded each day in the selected range.</div>
-          <div class="chart-box">
-            <canvas id="chart-image"></canvas>
-            <div class="chart-empty hidden" id="empty-image">No data in this range</div>
-            <div class="loading" id="loading-image">Loading…</div>
-          </div>
-        </div>
-        <div class="card">
-          <h2>Edited Images · day-wise</h2>
-          <div class="desc">Images where <code style="color:var(--accent)">image_action</code> is not null.</div>
-          <div class="chart-box">
-            <canvas id="chart-edited"></canvas>
-            <div class="chart-empty hidden" id="empty-edited">No data in this range</div>
-            <div class="loading" id="loading-edited">Loading…</div>
-          </div>
-        </div>
-      </section>
-
-      <div class="footer-note">
-        <span>Source · metabase.spyne.ai (public)</span>
-        <span id="last-updated">—</span>
+      <div class="date-inputs">
+        <input type="date" id="from" />
+        <input type="date" id="to" />
       </div>
     </div>
 
-    <div class="toast" id="toast"></div>
+    <div class="field">
+      <label><span class="num">02</span>Enterprise</label>
+      <select id="enterprise"><option value="">All enterprises</option></select>
+    </div>
 
-    <script>
-      // ============================================================
-      // Configuration
-      // ============================================================
-      // When deployed on Vercel, the API lives at /api/data.
-      // For local file:// preview we fall back to fetching the CSV
-      // directly in the browser and aggregating client-side.
-      const API_URL = "/api/data";
-      const CSV_FALLBACK_URL =
-        "https://metabase.spyne.ai/public/question/8870098d-e121-4caa-9e9f-69c31ce9c50e.csv";
+    <div class="field">
+      <label><span class="num">03</span>Account type</label>
+      <select id="account_type"><option value="">All account types</option></select>
+    </div>
 
-      const REFRESH_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
-      const CACHE_KEY = "spyne_dashboard_cache_v1";
+    <div class="field">
+      <label><span class="num">04</span>Run</label>
+      <div class="actions">
+        <button class="primary" id="apply">Apply</button>
+        <button class="ghost" id="sync" title="Force fresh fetch from Metabase">Sync</button>
+      </div>
+    </div>
+  </div>
+</section>
 
-      let charts = {};
-      let lastFilterOptions = null;
-      let lastRefreshAt = 0;       // ms timestamp of the most recent successful refresh
-      let countdownTimer = null;   // interval id for the ticking countdown
-      let autoRefreshTimer = null; // interval id for the hourly auto-refresh
+<section class="metrics">
+  <div class="metric accent">
+    <div class="index">i.</div>
+    <div class="label">Distinct SKU count</div>
+    <div class="value" id="m-sku"><span class="skel"></span></div>
+    <div class="foot"><span>Unique sku_id</span><span id="m-sku-pct">—</span></div>
+  </div>
+  <div class="metric accent">
+    <div class="index">ii.</div>
+    <div class="label">Distinct image count</div>
+    <div class="value" id="m-img"><span class="skel"></span></div>
+    <div class="foot"><span>Unique image_id</span><span id="m-img-rows">—</span></div>
+  </div>
+  <div class="metric accent">
+    <div class="index">iii.</div>
+    <div class="label">Edited images</div>
+    <div class="value" id="m-edit"><span class="skel"></span></div>
+    <div class="foot"><span>image_action ≠ null</span><span id="m-edit-rate">—</span></div>
+  </div>
+</section>
 
-      // ============================================================
-      // Utilities
-      // ============================================================
-      function showToast(msg, isError = true) {
-        const t = document.getElementById("toast");
-        t.textContent = msg;
-        t.style.background = isError ? "var(--accent-2)" : "var(--accent-3)";
-        t.classList.add("show");
-        setTimeout(() => t.classList.remove("show"), 3500);
-      }
+<section class="detail-strip">
+  <div class="panel">
+    <h3>Run context</h3>
+    <dl class="kv">
+      <dt>Rows matched</dt><dd id="d-rows">—</dd>
+      <dt>Total rows in source</dt><dd id="d-total">—</dd>
+      <dt>Source</dt><dd>Metabase · public CSV</dd>
+      <dt>Cache TTL</dt><dd>60 minutes</dd>
+      <dt>From cache</dt><dd id="d-cache">—</dd>
+    </dl>
+  </div>
+  <div class="panel">
+    <h3>Active filters</h3>
+    <dl class="kv">
+      <dt>From</dt><dd id="d-from">—</dd>
+      <dt>To</dt><dd id="d-to">—</dd>
+      <dt>Enterprise</dt><dd id="d-ent">All</dd>
+      <dt>Account type</dt><dd id="d-acc">All</dd>
+    </dl>
+  </div>
+</section>
 
-      function showError(title, message, debug = null, level = "error") {
-        const banner = document.getElementById("error-banner");
-        const titleEl = document.getElementById("error-title");
-        const msgEl = document.getElementById("error-message");
-        const details = document.getElementById("error-details");
-        const debugEl = document.getElementById("error-debug");
+<footer>
+  <span>Image Operations Dashboard · v1.0</span>
+  <span>Data refreshes hourly · Metabase public source</span>
+</footer>
 
-        banner.classList.toggle("warning", level === "warning");
-        titleEl.textContent = title;
-        msgEl.textContent = message;
+<div id="status"></div>
 
-        if (debug) {
-          details.hidden = false;
-          debugEl.textContent =
-            typeof debug === "string" ? debug : JSON.stringify(debug, null, 2);
-        } else {
-          details.hidden = true;
-        }
-        banner.hidden = false;
-        console.error(`[dashboard:${level}] ${title} — ${message}`, debug || "");
-      }
-      function hideError() {
-        document.getElementById("error-banner").hidden = true;
-      }
-      document.getElementById("error-dismiss")?.addEventListener("click", hideError);
+<script>
+  // ---------- Config ----------
+  const API = '/api/metrics';
+  const REFRESH_MS = 60 * 60 * 1000; // 1 hour
+  let refreshTimer = null;
+  let countdownTimer = null;
+  let nextRefreshAt = null;
 
-      function setLoading(on) {
-        ["sku", "image", "edited"].forEach((k) => {
-          document.getElementById(`loading-${k}`).classList.toggle("show", on);
-        });
-      }
+  // ---------- DOM ----------
+  const el = id => document.getElementById(id);
+  const fromInput = el('from'), toInput = el('to');
+  const entSel = el('enterprise'), accSel = el('account_type');
+  const applyBtn = el('apply'), syncBtn = el('sync');
+  const lastSyncEl = el('last-sync'), nextRefreshEl = el('next-refresh');
+  const status = el('status');
 
-      function fmt(n) {
-        return new Intl.NumberFormat("en-US").format(n);
-      }
+  // ---------- Helpers ----------
+  function fmt(n) {
+    if (n === null || n === undefined) return '—';
+    return new Intl.NumberFormat('en-US').format(n);
+  }
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function toISO(d) { return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+  function showStatus(msg, isError) {
+    status.textContent = msg;
+    status.classList.toggle('error', !!isError);
+    status.classList.add('show');
+    clearTimeout(showStatus._t);
+    showStatus._t = setTimeout(() => status.classList.remove('show'), 3500);
+  }
 
-      // ============================================================
-      // Local cache (browser) — keyed by filter combination
-      // ============================================================
-      function cacheKeyFor(params) {
-        return `${CACHE_KEY}:${JSON.stringify(params)}`;
-      }
-      function saveCache(params, data) {
-        try {
-          localStorage.setItem(
-            cacheKeyFor(params),
-            JSON.stringify({ savedAt: Date.now(), data })
-          );
-          // also save the latest "fetched at" so the countdown survives reloads
-          localStorage.setItem(CACHE_KEY + ":lastRefreshAt", String(Date.now()));
-        } catch (e) {
-          // localStorage may be full or unavailable — ignore
-          console.warn("Cache save failed:", e);
-        }
-      }
-      function loadCache(params) {
-        try {
-          const raw = localStorage.getItem(cacheKeyFor(params));
-          if (!raw) return null;
-          const parsed = JSON.parse(raw);
-          if (Date.now() - parsed.savedAt > REFRESH_INTERVAL_MS) return null;
-          return parsed;
-        } catch (e) {
-          return null;
-        }
-      }
-      function getStoredLastRefreshAt() {
-        const v = localStorage.getItem(CACHE_KEY + ":lastRefreshAt");
-        return v ? parseInt(v, 10) : 0;
-      }
+  // ---------- Date presets ----------
+  function presetRange(name) {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const d = new Date(today);
+    let from, to;
 
-      // ============================================================
-      // Countdown / auto-refresh
-      // ============================================================
-      function fmtCountdown(ms) {
-        if (ms < 0) ms = 0;
-        const total = Math.floor(ms / 1000);
-        const h = String(Math.floor(total / 3600)).padStart(2, "0");
-        const m = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
-        const s = String(total % 60).padStart(2, "0");
-        return `${h}:${m}:${s}`;
-      }
-      function updateCountdown() {
-        const el = document.getElementById("timer");
-        if (!el || !lastRefreshAt) return;
-        const remaining = REFRESH_INTERVAL_MS - (Date.now() - lastRefreshAt);
-        el.textContent = fmtCountdown(remaining);
-        if (remaining <= 0) {
-          // trigger a forced refresh
-          lastRefreshAt = Date.now(); // optimistic; will be reset by refresh()
-          refresh(true);
-        }
-      }
-      function startTimers() {
-        if (countdownTimer) clearInterval(countdownTimer);
-        if (autoRefreshTimer) clearInterval(autoRefreshTimer);
-        countdownTimer = setInterval(updateCountdown, 1000);
-        // belt-and-braces: also schedule a hard refresh every hour
-        autoRefreshTimer = setInterval(() => refresh(true), REFRESH_INTERVAL_MS);
-      }
+    if (name === 'this_week') {
+      // ISO week (Mon-Sun)
+      const dow = (d.getDay() + 6) % 7;
+      from = new Date(d); from.setDate(d.getDate() - dow);
+      to = new Date(from); to.setDate(from.getDate() + 6);
+    } else if (name === 'last_week') {
+      const dow = (d.getDay() + 6) % 7;
+      to = new Date(d); to.setDate(d.getDate() - dow - 1);
+      from = new Date(to); from.setDate(to.getDate() - 6);
+    } else if (name === 'this_month') {
+      from = new Date(d.getFullYear(), d.getMonth(), 1);
+      to = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    } else if (name === 'last_month') {
+      from = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+      to = new Date(d.getFullYear(), d.getMonth(), 0);
+    } else if (name === 'last_3_weeks') {
+      to = new Date(d);
+      from = new Date(d); from.setDate(d.getDate() - 21 + 1);
+    } else if (name === 'last_3_months') {
+      to = new Date(d);
+      from = new Date(d.getFullYear(), d.getMonth() - 3, d.getDate() + 1);
+    } else {
+      return null;
+    }
+    return { from: toISO(from), to: toISO(to) };
+  }
 
-      // ============================================================
-      // Client-side CSV parsing + aggregation (fallback when API is absent)
-      // ============================================================
-      function parseCSV(text) {
-        const rows = [];
-        let cur = [], field = "", inQuotes = false;
-        for (let i = 0; i < text.length; i++) {
-          const c = text[i];
-          if (inQuotes) {
-            if (c === '"') {
-              if (text[i + 1] === '"') { field += '"'; i++; }
-              else inQuotes = false;
-            } else field += c;
-          } else {
-            if (c === '"') inQuotes = true;
-            else if (c === ",") { cur.push(field); field = ""; }
-            else if (c === "\n") { cur.push(field); rows.push(cur); cur = []; field = ""; }
-            else if (c === "\r") {}
-            else field += c;
-          }
-        }
-        if (field.length > 0 || cur.length > 0) { cur.push(field); rows.push(cur); }
-        if (rows.length === 0) return { headers: [], records: [] };
-        const headers = rows[0].map((h) => h.trim());
-        const records = rows.slice(1)
-          .filter((r) => r.length > 1 || (r.length === 1 && r[0].trim() !== ""))
-          .map((r) => {
-            const o = {};
-            headers.forEach((h, i) => { o[h] = r[i] !== undefined ? r[i] : ""; });
-            return o;
-          });
-        return { headers, records };
-      }
+  function setPreset(name) {
+    document.querySelectorAll('.chip').forEach(c =>
+      c.classList.toggle('active', c.dataset.preset === name));
 
-      function findCol(headers, candidates) {
-        const lower = headers.map((h) => h.toLowerCase());
-        for (const c of candidates) {
-          const i = lower.indexOf(c.toLowerCase());
-          if (i !== -1) return headers[i];
-        }
-        for (const c of candidates) {
-          const i = lower.findIndex((h) => h.includes(c.toLowerCase()));
-          if (i !== -1) return headers[i];
-        }
-        return null;
-      }
+    if (name === 'custom') {
+      fromInput.disabled = false;
+      toInput.disabled = false;
+      return;
+    }
+    const r = presetRange(name);
+    if (r) {
+      fromInput.value = r.from;
+      toInput.value = r.to;
+      fromInput.disabled = true;
+      toInput.disabled = true;
+    }
+  }
 
-      function toDayKey(v) {
-        if (!v) return null;
-        const s = String(v).trim();
-        if (!s) return null;
-        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-        if (m) return `${m[1]}-${m[2]}-${m[3]}`;
-        const d = new Date(s);
-        if (isNaN(d.getTime())) return null;
-        const y = d.getUTCFullYear();
-        const mo = String(d.getUTCMonth() + 1).padStart(2, "0");
-        const da = String(d.getUTCDate()).padStart(2, "0");
-        return `${y}-${mo}-${da}`;
-      }
-      function nonEmpty(v) {
-        if (v === null || v === undefined) return false;
-        const s = String(v).trim().toLowerCase();
-        return s !== "" && s !== "null" && s !== "na" && s !== "n/a";
-      }
+  document.querySelectorAll('.chip').forEach(c => {
+    c.addEventListener('click', () => setPreset(c.dataset.preset));
+  });
 
-      function aggregateClient(records, headers, params) {
-        const dateCol = findCol(headers, ["date", "created_at", "day", "created_date", "event_date"]) || headers[0];
-        const entCol = findCol(headers, ["enterprise_name", "enterprise", "client_name", "company_name"]);
-        const accCol = findCol(headers, ["account_type", "accounttype", "type"]);
-        const skuCol = findCol(headers, ["sku", "sku_id", "sku_name"]);
-        const imgCol = findCol(headers, ["image", "image_id", "image_url", "image_name"]);
-        const actCol = findCol(headers, ["image_action", "action", "edit_action"]);
+  // When user edits date manually, switch to custom
+  [fromInput, toInput].forEach(inp => {
+    inp.addEventListener('input', () => setPreset('custom'));
+  });
 
-        const enterprises = new Set(), accountTypes = new Set();
-        let minDate = null, maxDate = null;
-        for (const r of records) {
-          if (entCol && nonEmpty(r[entCol])) enterprises.add(String(r[entCol]).trim());
-          if (accCol && nonEmpty(r[accCol])) accountTypes.add(String(r[accCol]).trim());
-          const dk = toDayKey(r[dateCol]);
-          if (dk) {
-            if (!minDate || dk < minDate) minDate = dk;
-            if (!maxDate || dk > maxDate) maxDate = dk;
-          }
-        }
+  // ---------- Filter option population ----------
+  function fillSelect(sel, values, current) {
+    const keep = current || sel.value;
+    sel.innerHTML = `<option value="">All ${sel.id === 'enterprise' ? 'enterprises' : 'account types'}</option>`;
+    for (const v of values) {
+      const opt = document.createElement('option');
+      opt.value = v; opt.textContent = v;
+      sel.appendChild(opt);
+    }
+    if (keep && values.includes(keep)) sel.value = keep;
+  }
 
-        const fromKey = params.from ? toDayKey(params.from) : null;
-        const toKey = params.to ? toDayKey(params.to) : null;
+  // ---------- Fetch + render ----------
+  async function fetchData({ force = false } = {}) {
+    const params = new URLSearchParams();
+    if (fromInput.value) params.set('from', fromInput.value);
+    if (toInput.value) params.set('to', toInput.value);
+    if (entSel.value) params.set('enterprise', entSel.value);
+    if (accSel.value) params.set('account_type', accSel.value);
+    if (force) params.set('refresh', '1');
 
-        const filtered = records.filter((r) => {
-          const dk = toDayKey(r[dateCol]);
-          if (!dk) return false;
-          if (fromKey && dk < fromKey) return false;
-          if (toKey && dk > toKey) return false;
-          if (params.enterprise && entCol && String(r[entCol]).trim() !== params.enterprise) return false;
-          if (params.account_type && accCol && String(r[accCol]).trim() !== params.account_type) return false;
-          return true;
-        });
+    applyBtn.disabled = true; syncBtn.disabled = true;
+    applyBtn.textContent = 'Loading…';
 
-        const skuMap = new Map(), imgMap = new Map(), editMap = new Map();
-        for (const r of filtered) {
-          const dk = toDayKey(r[dateCol]);
-          if (!dk) continue;
-          if (skuCol && nonEmpty(r[skuCol])) {
-            if (!skuMap.has(dk)) skuMap.set(dk, new Set());
-            skuMap.get(dk).add(String(r[skuCol]).trim());
-          }
-          if (imgCol && nonEmpty(r[imgCol])) {
-            if (!imgMap.has(dk)) imgMap.set(dk, new Set());
-            imgMap.get(dk).add(String(r[imgCol]).trim());
-          }
-          if (actCol && nonEmpty(r[actCol])) {
-            if (imgCol && nonEmpty(r[imgCol])) {
-              if (!editMap.has(dk)) editMap.set(dk, new Set());
-              editMap.get(dk).add(String(r[imgCol]).trim());
-            } else {
-              editMap.set(dk, (editMap.get(dk) || 0) + 1);
-            }
-          }
-        }
+    try {
+      const res = await fetch(`${API}?${params.toString()}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Unknown error');
+      render(data);
+      scheduleRefresh();
+      showStatus(force ? 'Synced from source.' : 'Updated.');
+    } catch (err) {
+      showStatus(`Error: ${err.message}`, true);
+      console.error(err);
+    } finally {
+      applyBtn.disabled = false; syncBtn.disabled = false;
+      applyBtn.textContent = 'Apply';
+    }
+  }
 
-        const allDays = Array.from(new Set([...skuMap.keys(), ...imgMap.keys(), ...editMap.keys()])).sort();
-        const skuByDay = allDays.map((d) => ({ date: d, count: skuMap.has(d) ? skuMap.get(d).size : 0 }));
-        const imageByDay = allDays.map((d) => ({ date: d, count: imgMap.has(d) ? imgMap.get(d).size : 0 }));
-        const editedByDay = allDays.map((d) => {
-          const v = editMap.get(d);
-          return { date: d, count: v instanceof Set ? v.size : v || 0 };
-        });
+  function render(data) {
+    const m = data.metrics;
+    el('m-sku').textContent = fmt(m.distinctSkuCount);
+    el('m-img').textContent = fmt(m.distinctImageCount);
+    el('m-edit').textContent = fmt(m.editedImageCount);
 
-        const totalSku = new Set(), totalImg = new Set(), totalEditSet = new Set();
-        let totalEditCount = 0;
-        for (const r of filtered) {
-          if (skuCol && nonEmpty(r[skuCol])) totalSku.add(String(r[skuCol]).trim());
-          if (imgCol && nonEmpty(r[imgCol])) totalImg.add(String(r[imgCol]).trim());
-          if (actCol && nonEmpty(r[actCol])) {
-            if (imgCol && nonEmpty(r[imgCol])) totalEditSet.add(String(r[imgCol]).trim());
-            else totalEditCount++;
-          }
-        }
+    const editRate = m.distinctImageCount > 0
+      ? Math.round((m.distinctEditedImageCount / m.distinctImageCount) * 100)
+      : 0;
+    el('m-edit-rate').textContent = `${editRate}% of images`;
+    el('m-img-rows').textContent = `${fmt(data.rowsConsidered)} rows`;
+    el('m-sku-pct').textContent = m.distinctImageCount > 0
+      ? `${(m.distinctImageCount / Math.max(m.distinctSkuCount, 1)).toFixed(1)} img / sku`
+      : '—';
 
-        return {
-          filters: {
-            enterprises: Array.from(enterprises).sort(),
-            account_types: Array.from(accountTypes).sort(),
-            minDate, maxDate,
-          },
-          skuByDay, imageByDay, editedByDay,
-          totals: {
-            sku: totalSku.size,
-            image: totalImg.size,
-            edited: totalEditSet.size > 0 ? totalEditSet.size : totalEditCount,
-          },
-          rowCount: filtered.length,
-        };
-      }
+    el('d-rows').textContent  = fmt(data.rowsConsidered);
+    el('d-total').textContent = fmt(data.totalRows);
+    el('d-cache').textContent = data.fromCache ? 'yes' : 'no (fresh)';
+    el('d-from').textContent  = data.appliedFilters.from || '—';
+    el('d-to').textContent    = data.appliedFilters.to || '—';
+    el('d-ent').textContent   = (data.appliedFilters.enterprise && data.appliedFilters.enterprise.length)
+      ? data.appliedFilters.enterprise.join(', ') : 'All';
+    el('d-acc').textContent   = (data.appliedFilters.account_type && data.appliedFilters.account_type.length)
+      ? data.appliedFilters.account_type.join(', ') : 'All';
 
-      // ============================================================
-      // Data fetching
-      // ============================================================
-      let cachedCsv = null; // cache the parsed CSV for fallback mode
+    fillSelect(entSel, data.filterOptions.enterprise_name || [], entSel.value);
+    fillSelect(accSel, data.filterOptions.account_type    || [], accSel.value);
 
-      async function fetchViaApi(params, force = false) {
-        const qs = new URLSearchParams();
-        if (params.from) qs.set("from", params.from);
-        if (params.to) qs.set("to", params.to);
-        if (params.enterprise) qs.set("enterprise", params.enterprise);
-        if (params.account_type) qs.set("account_type", params.account_type);
-        if (force) qs.set("refresh", "1");
-        const url = `${API_URL}?${qs.toString()}`;
-        console.log("[dashboard] GET", url);
-        const r = await fetch(url, force ? { cache: "no-store" } : {});
-        if (!r.ok) {
-          let body = "";
-          try { body = await r.text(); } catch (_) {}
-          const err = new Error(`API ${r.status} ${r.statusText}${body ? " — " + body.slice(0, 300) : ""}`);
-          err.status = r.status;
-          throw err;
-        }
-        const json = await r.json();
-        if (json.error) {
-          throw new Error("API returned error: " + json.error);
-        }
-        return json;
-      }
+    const t = new Date(data.lastFetched);
+    lastSyncEl.textContent = t.toLocaleString(undefined, { hour: '2-digit', minute:'2-digit', day:'2-digit', month:'short' });
+  }
 
-      async function fetchViaCsv(params, force = false) {
-        if (force || !cachedCsv) {
-          console.log("[dashboard] GET CSV (fallback)", CSV_FALLBACK_URL);
-          const r = await fetch(CSV_FALLBACK_URL, force ? { cache: "no-store" } : {});
-          if (!r.ok) throw new Error(`CSV ${r.status} ${r.statusText}`);
-          const text = await r.text();
-          if (!text || text.trim().length === 0) {
-            throw new Error("CSV response was empty");
-          }
-          cachedCsv = parseCSV(text);
-          if (cachedCsv.records.length === 0) {
-            throw new Error("CSV parsed to zero rows — header line: " + cachedCsv.headers.join(","));
-          }
-        }
-        return aggregateClient(cachedCsv.records, cachedCsv.headers, params);
-      }
+  // ---------- Auto-refresh + countdown ----------
+  function scheduleRefresh() {
+    if (refreshTimer) clearTimeout(refreshTimer);
+    nextRefreshAt = Date.now() + REFRESH_MS;
+    refreshTimer = setTimeout(() => fetchData({ force: false }), REFRESH_MS);
+    tickCountdown();
+  }
+  function tickCountdown() {
+    if (countdownTimer) clearInterval(countdownTimer);
+    const update = () => {
+      if (!nextRefreshAt) { nextRefreshEl.textContent = '—'; return; }
+      const ms = nextRefreshAt - Date.now();
+      if (ms <= 0) { nextRefreshEl.textContent = 'now'; return; }
+      const m = Math.floor(ms / 60000), s = Math.floor((ms % 60000) / 1000);
+      nextRefreshEl.textContent = `${pad(m)}:${pad(s)}`;
+    };
+    update();
+    countdownTimer = setInterval(update, 1000);
+  }
 
-      async function fetchData(params, force = false) {
-        // try API first; on network/404, fall back to direct CSV
-        let apiErr = null;
-        try {
-          return await fetchViaApi(params, force);
-        } catch (e) {
-          apiErr = e;
-          console.warn("[dashboard] API unavailable, falling back to direct CSV:", e.message);
-          document.getElementById("status").textContent = "Direct CSV mode";
-        }
-        try {
-          return await fetchViaCsv(params, force);
-        } catch (e) {
-          // "Load failed" / "Failed to fetch" with no further detail is almost
-          // always CORS — Metabase blocks the browser from reading the CSV directly.
-          const looksLikeCors =
-            /load failed|failed to fetch|networkerror/i.test(e.message || "");
-          const csvMsg = looksLikeCors
-            ? `${e.message} (likely a CORS block from Metabase — the browser cannot fetch the CSV directly; the API must work)`
-            : e.message;
-          // throw a combined error so the UI can display both
-          const combined = new Error(
-            `Both data sources failed.\n• API: ${apiErr ? apiErr.message : "n/a"}\n• CSV fallback: ${csvMsg}`
-          );
-          combined.apiError = apiErr;
-          combined.csvError = e;
-          throw combined;
-        }
-      }
+  // ---------- Wire up ----------
+  applyBtn.addEventListener('click', () => fetchData({ force: false }));
+  syncBtn.addEventListener('click',  () => fetchData({ force: true }));
 
-      // ============================================================
-      // Charts
-      // ============================================================
-      function toggleEmpty(canvasId, isEmpty) {
-        const map = {
-          "chart-sku": "empty-sku",
-          "chart-image": "empty-image",
-          "chart-edited": "empty-edited",
-        };
-        const el = document.getElementById(map[canvasId]);
-        if (el) el.classList.toggle("hidden", !isEmpty);
-      }
+  // Default preset: last 3 months
+  setPreset('last_3_months');
+  fetchData({ force: false });
+</script>
 
-      function buildChart(canvasId, label, data, color) {
-        try {
-          const isEmpty = !data || data.length === 0 || data.every((d) => !d.count);
-          toggleEmpty(canvasId, isEmpty);
-
-          const ctx = document.getElementById(canvasId).getContext("2d");
-          if (charts[canvasId]) charts[canvasId].destroy();
-
-          const labels = data.map((d) => d.date);
-          const values = data.map((d) => d.count);
-
-          const grad = ctx.createLinearGradient(0, 0, 0, 280);
-          grad.addColorStop(0, color + "55");
-          grad.addColorStop(1, color + "00");
-
-          charts[canvasId] = new Chart(ctx, {
-          type: "line",
-          data: {
-            labels,
-            datasets: [{
-              label,
-              data: values,
-              borderColor: color,
-              backgroundColor: grad,
-              fill: true,
-              tension: 0.35,
-              borderWidth: 2,
-              pointRadius: 3,
-              pointBackgroundColor: color,
-              pointBorderColor: "#181613",
-              pointBorderWidth: 1.5,
-              pointHoverRadius: 6,
-            }],
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: { display: false },
-              tooltip: {
-                backgroundColor: "#0e0d0b",
-                borderColor: "#2b2722",
-                borderWidth: 1,
-                titleColor: "#f3ece1",
-                bodyColor: "#b9aF9e",
-                padding: 12,
-                cornerRadius: 6,
-                displayColors: false,
-                titleFont: { family: "JetBrains Mono", size: 11 },
-                bodyFont: { family: "Inter Tight", size: 13, weight: "600" },
-                callbacks: {
-                  title: (items) => items[0].label,
-                  label: (item) => `${fmt(item.raw)} ${label.toLowerCase()}`,
-                },
-              },
-            },
-            scales: {
-              x: {
-                ticks: {
-                  color: "#6b6358",
-                  font: { family: "JetBrains Mono", size: 10 },
-                  maxRotation: 0,
-                  autoSkipPadding: 20,
-                },
-                grid: { display: false },
-                border: { color: "#2b2722" },
-              },
-              y: {
-                beginAtZero: true,
-                ticks: {
-                  color: "#6b6358",
-                  font: { family: "JetBrains Mono", size: 10 },
-                },
-                grid: { color: "#221f1b" },
-                border: { display: false },
-              },
-            },
-          },
-        });
-        } catch (err) {
-          console.error(`[dashboard] Chart "${canvasId}" failed to render:`, err);
-          toggleEmpty(canvasId, true);
-          const el = document.getElementById({
-            "chart-sku": "empty-sku",
-            "chart-image": "empty-image",
-            "chart-edited": "empty-edited",
-          }[canvasId]);
-          if (el) el.textContent = "Chart error: " + err.message;
-        }
-      }
-
-      // ============================================================
-      // UI
-      // ============================================================
-      function populateFilterOptions(opts) {
-        if (!opts) return;
-        // Only populate dropdowns on first load so user's selection persists
-        if (lastFilterOptions) return;
-        lastFilterOptions = opts;
-
-        const entSel = document.getElementById("enterprise");
-        opts.enterprises.forEach((e) => {
-          const o = document.createElement("option");
-          o.value = e; o.textContent = e;
-          entSel.appendChild(o);
-        });
-        const accSel = document.getElementById("account_type");
-        opts.account_types.forEach((a) => {
-          const o = document.createElement("option");
-          o.value = a; o.textContent = a;
-          accSel.appendChild(o);
-        });
-
-        // set date input bounds
-        const fromI = document.getElementById("from");
-        const toI = document.getElementById("to");
-        if (opts.minDate) { fromI.min = opts.minDate; toI.min = opts.minDate; }
-        if (opts.maxDate) { fromI.max = opts.maxDate; toI.max = opts.maxDate; }
-      }
-
-      function readFilters() {
-        return {
-          from: document.getElementById("from").value || "",
-          to: document.getElementById("to").value || "",
-          enterprise: document.getElementById("enterprise").value || "",
-          account_type: document.getElementById("account_type").value || "",
-        };
-      }
-
-      function applyData(data) {
-        populateFilterOptions(data.filters);
-        document.getElementById("total-sku").textContent = fmt(data.totals.sku);
-        document.getElementById("total-image").textContent = fmt(data.totals.image);
-        document.getElementById("total-edited").textContent = fmt(data.totals.edited);
-        document.getElementById("row-count").textContent = `${fmt(data.rowCount)} rows`;
-        buildChart("chart-sku", "SKUs", data.skuByDay, "#ffd166");
-        buildChart("chart-image", "Images", data.imageByDay, "#06d6a0");
-        buildChart("chart-edited", "Edited", data.editedByDay, "#ef476f");
-      }
-
-      function describeEmptyResult(data, params) {
-        // Returns null if there is data; otherwise an object explaining why
-        const hasAnyData =
-          (data.skuByDay && data.skuByDay.length > 0) ||
-          (data.imageByDay && data.imageByDay.length > 0) ||
-          (data.editedByDay && data.editedByDay.length > 0);
-        if (hasAnyData) return null;
-
-        const cols = data.columnsDetected || {};
-        const missing = [];
-        if (!cols.date) missing.push("date");
-        if (!cols.sku) missing.push("sku");
-        if (!cols.image) missing.push("image");
-
-        let title, message;
-        if (missing.length > 0) {
-          title = "Expected columns not found in CSV";
-          message = `The data loaded, but these columns couldn't be located: ${missing.join(", ")}. The dashboard expects column names like "date", "sku", "image", "image_action", "enterprise_name", "account_type".`;
-        } else if (data.rowCount === 0) {
-          const hasFilter =
-            params.from || params.to || params.enterprise || params.account_type;
-          title = hasFilter
-            ? "No rows match the current filters"
-            : "The data source returned 0 rows";
-          message = hasFilter
-            ? "Try clearing the date range or other filters."
-            : "The CSV loaded but contained no rows. Check the Metabase question.";
-        } else {
-          title = "Data loaded but nothing to chart";
-          message = `${data.rowCount} rows loaded but no day-wise values could be computed. This usually means the date column has unparseable values.`;
-        }
-        return { title, message, debug: data };
-      }
-
-      async function refresh(force = false) {
-        const params = readFilters();
-        const btn = document.getElementById("refresh-now");
-        hideError();
-
-        // 1) instant paint from cache (only if not forcing)
-        if (!force) {
-          const cached = loadCache(params);
-          if (cached) {
-            applyData(cached.data);
-            document.getElementById("status").textContent = "Cached";
-            document.getElementById("last-updated").textContent =
-              "From cache · " + new Date(cached.savedAt).toLocaleString();
-          }
-        }
-
-        setLoading(true);
-        if (force && btn) btn.classList.add("spinning");
-        try {
-          const data = await fetchData(params, force);
-
-          // Empty / mis-detected diagnostic
-          const empty = describeEmptyResult(data, params);
-          if (empty) {
-            showError(empty.title, empty.message, empty.debug, "warning");
-          }
-
-          applyData(data);
-          saveCache(params, data);
-
-          lastRefreshAt = Date.now();
-          document.getElementById("status").textContent = empty ? "No data" : "Connected";
-          document.getElementById("last-updated").textContent =
-            "Updated · " + new Date(lastRefreshAt).toLocaleString();
-          updateCountdown();
-        } catch (e) {
-          console.error("[dashboard] refresh failed:", e);
-          const debug = {
-            time: new Date().toISOString(),
-            url: location.href,
-            apiUrl: API_URL,
-            csvFallback: CSV_FALLBACK_URL,
-            params,
-            apiError: e.apiError ? e.apiError.message : null,
-            csvError: e.csvError ? e.csvError.message : null,
-            message: e.message,
-            stack: e.stack,
-          };
-          showError(
-            "Failed to load data",
-            e.message || "An unknown error occurred while fetching data.",
-            debug,
-            "error"
-          );
-          showToast("Data load failed");
-          document.getElementById("status").textContent = "Error";
-
-          // also blank the chart bodies so the user doesn't see stale paint
-          toggleEmpty("chart-sku", true);
-          toggleEmpty("chart-image", true);
-          toggleEmpty("chart-edited", true);
-        } finally {
-          setLoading(false);
-          if (btn) setTimeout(() => btn.classList.remove("spinning"), 600);
-        }
-      }
-
-      document.getElementById("apply").addEventListener("click", () => refresh(false));
-      document.getElementById("refresh-now").addEventListener("click", () => refresh(true));
-      document.getElementById("reset").addEventListener("click", () => {
-        document.getElementById("from").value = "";
-        document.getElementById("to").value = "";
-        document.getElementById("enterprise").value = "";
-        document.getElementById("account_type").value = "";
-        refresh(false);
-      });
-      ["from", "to", "enterprise", "account_type"].forEach((id) => {
-        document.getElementById(id).addEventListener("change", () => refresh(false));
-      });
-
-      // Restore the last refresh timestamp so the countdown is accurate across reloads
-      const stored = getStoredLastRefreshAt();
-      if (stored && Date.now() - stored < REFRESH_INTERVAL_MS) {
-        lastRefreshAt = stored;
-      } else {
-        lastRefreshAt = Date.now();
-      }
-
-      startTimers();
-      // Initial load: if we have a fresh cache (< 1h old), the next refresh is gentle;
-      // otherwise force a fetch so the user sees fresh data immediately.
-      const shouldForce = !stored || Date.now() - stored >= REFRESH_INTERVAL_MS;
-      refresh(shouldForce);
-    </script>
-  </body>
+</body>
 </html>
