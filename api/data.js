@@ -317,6 +317,11 @@ export default async function handler(req, res) {
       },
     });
   } catch (err) {
-    res.status(500).json({ error: String(err && err.message ? err.message : err) });
+    console.error("[api/data] error:", err);
+    res.status(500).json({
+      error: String(err && err.message ? err.message : err),
+      stack: err && err.stack ? err.stack.split("\n").slice(0, 5).join("\n") : null,
+      hint: "Check the Metabase URL is still public and accessible, and that the CSV is well-formed.",
+    });
   }
 }
