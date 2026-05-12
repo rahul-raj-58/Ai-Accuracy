@@ -260,16 +260,35 @@
     margin-bottom: 32px;
   }
   .kpi {
-    background: var(--paper);
+    /* Button reset */
+    appearance: none;
+    -webkit-appearance: none;
     border: 1px solid var(--rule);
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    width: 100%;
+
+    background: var(--paper);
     border-radius: 14px;
     padding: 24px 24px 22px;
     position: relative;
     overflow: hidden;
     box-shadow: var(--shadow);
-    transition: transform .18s ease;
+    cursor: pointer;
+    transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
   }
-  .kpi:hover { transform: translateY(-2px); }
+  .kpi:hover { transform: translateY(-2px); border-color: var(--ink-soft); }
+  .kpi:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .kpi:active { transform: translateY(0); }
+  .kpi.is-selected {
+    border-color: var(--ink);
+    box-shadow: 0 1px 0 rgba(22,20,15,.04), 0 14px 30px -10px rgba(22,20,15,.22);
+    transform: translateY(-2px);
+  }
+  .kpi.is-selected .kpi-hint {
+    color: var(--accent);
+  }
   .kpi .kpi-label {
     font-family: "JetBrains Mono", monospace;
     font-size: 10px;
@@ -292,6 +311,20 @@
     font-size: 12px;
     color: var(--ink-soft);
   }
+  .kpi .kpi-hint {
+    position: absolute;
+    top: 22px; right: 24px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    opacity: 0;
+    transition: opacity .18s ease, color .18s ease;
+  }
+  .kpi:hover .kpi-hint,
+  .kpi:focus-visible .kpi-hint,
+  .kpi.is-selected .kpi-hint { opacity: 1; }
   .kpi .kpi-bar {
     position: absolute;
     left: 0; bottom: 0;
@@ -304,7 +337,13 @@
   .kpi.k2 .kpi-bar { background: var(--accent); }
   .kpi.k3 .kpi-bar { background: #2a4a7f; }
   .kpi.k4 .kpi-bar { background: #a35400; }
+  .kpi.is-selected.k1 { border-color: #1f7a4d; }
+  .kpi.is-selected.k2 { border-color: var(--accent); }
+  .kpi.is-selected.k3 { border-color: #2a4a7f; }
+  .kpi.is-selected.k4 { border-color: #a35400; }
 
+  .kpi.loading { cursor: default; }
+  .kpi.loading .kpi-hint { display: none; }
   .kpi.loading .kpi-value { color: var(--ink-faint); }
   .kpi.loading .kpi-value::after {
     content: ""; display: inline-block;
@@ -313,6 +352,150 @@
     animation: blink 1s infinite;
   }
   @keyframes blink { 50% { opacity: 0.2; } }
+
+  /* ---------- Detail panel (drill-down) ---------- */
+  .detail {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    margin-bottom: 28px;
+    overflow: hidden;
+    animation: detailIn .28s cubic-bezier(.2,.7,.2,1);
+  }
+  @keyframes detailIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .detail-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--rule);
+    flex-wrap: wrap;
+  }
+  .detail-title { display: flex; flex-direction: column; gap: 2px; }
+  .detail-eyebrow {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .detail-title h2 {
+    font-family: "Fraunces", serif;
+    font-weight: 500;
+    font-size: 22px;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .detail-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .detail-search {
+    width: 240px;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  .detail-close {
+    appearance: none;
+    border: 1px solid var(--rule);
+    background: var(--bg);
+    color: var(--ink-soft);
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background .12s, color .12s;
+  }
+  .detail-close:hover { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+  .detail-table-wrap {
+    max-height: 480px;
+    overflow-y: auto;
+    overflow-x: auto;
+  }
+  .detail-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .detail-table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
+    text-align: left;
+    padding: 12px 18px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .detail-table thead th:hover { color: var(--ink); }
+  .detail-table thead th.num { text-align: right; }
+  .detail-table thead th .sort-ind {
+    margin-left: 4px;
+    color: var(--accent);
+    font-size: 9px;
+  }
+  .detail-table tbody td {
+    padding: 11px 18px;
+    border-bottom: 1px solid #efece1;
+    font-variant-numeric: tabular-nums;
+  }
+  .detail-table tbody td.num { text-align: right; font-family: "JetBrains Mono", monospace; }
+  .detail-table tbody td.muted { color: var(--ink-faint); }
+  .detail-table tbody tr:hover td { background: var(--bg); }
+  .detail-table tbody tr.total-row td {
+    font-weight: 600;
+    background: #f9f7ef;
+    border-top: 1px solid var(--rule);
+  }
+  .detail-table tbody td .acct-pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--bg);
+    border: 1px solid var(--rule);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+  }
+  .detail-table tbody td .bar {
+    display: inline-block;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 3px;
+    vertical-align: middle;
+    margin-right: 8px;
+    opacity: 0.8;
+  }
+  .detail-foot {
+    padding: 10px 24px;
+    border-top: 1px solid var(--rule);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  @media (max-width: 640px) {
+    .detail-head { flex-direction: column; align-items: flex-start; }
+    .detail-search { width: 100%; }
+    .detail-actions { width: 100%; justify-content: space-between; }
+  }
 
   /* ---------- Meta / footer line ---------- */
   .meta-line {
@@ -452,30 +635,54 @@
   </section>
 
   <section class="kpis">
-    <div class="kpi k1 loading">
+    <button type="button" class="kpi k1 loading" data-card="enterprises" aria-pressed="false">
       <div class="kpi-label">Unique enterprises</div>
       <div class="kpi-value" id="kEnt">—</div>
       <div class="kpi-sub" id="kEntSub">awaiting data…</div>
       <div class="kpi-bar"></div>
-    </div>
-    <div class="kpi k2 loading">
+      <span class="kpi-hint">click to break down</span>
+    </button>
+    <button type="button" class="kpi k2 loading" data-card="images" aria-pressed="false">
       <div class="kpi-label">Unique image IDs</div>
       <div class="kpi-value" id="kImg">—</div>
       <div class="kpi-sub" id="kImgSub">awaiting data…</div>
       <div class="kpi-bar"></div>
-    </div>
-    <div class="kpi k3 loading">
+      <span class="kpi-hint">click to break down</span>
+    </button>
+    <button type="button" class="kpi k3 loading" data-card="skus" aria-pressed="false">
       <div class="kpi-label">Unique SKU IDs</div>
       <div class="kpi-value" id="kSku">—</div>
       <div class="kpi-sub" id="kSkuSub">awaiting data…</div>
       <div class="kpi-bar"></div>
-    </div>
-    <div class="kpi k4 loading">
+      <span class="kpi-hint">click to break down</span>
+    </button>
+    <button type="button" class="kpi k4 loading" data-card="edited" aria-pressed="false">
       <div class="kpi-label">Edited images <span style="color:var(--ink-faint);font-weight:400">· image_action ≠ ∅</span></div>
       <div class="kpi-value" id="kEdit">—</div>
       <div class="kpi-sub" id="kEditSub">awaiting data…</div>
       <div class="kpi-bar"></div>
+      <span class="kpi-hint">click to break down</span>
+    </button>
+  </section>
+
+  <section class="detail" id="detailPanel" hidden>
+    <div class="detail-head">
+      <div class="detail-title">
+        <span class="detail-eyebrow" id="detailEyebrow">Breakdown</span>
+        <h2 id="detailHeading">—</h2>
+      </div>
+      <div class="detail-actions">
+        <input type="text" class="detail-search field" id="detailSearch" placeholder="Filter by enterprise…" />
+        <button type="button" class="detail-close" id="detailClose" aria-label="Close">×</button>
+      </div>
     </div>
+    <div class="detail-table-wrap">
+      <table class="detail-table" id="detailTable">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="detail-foot" id="detailFoot"></div>
   </section>
 
   <div class="meta-line">
@@ -498,6 +705,12 @@
       to: null,
       enterprises: new Set(),   // empty = "all"
       accounts: new Set(),      // empty = "all"
+    },
+    detail: {
+      card: null,             // 'enterprises' | 'images' | 'skus' | 'edited' | null
+      sortKey: null,          // string column key
+      sortDir: "desc",        // 'asc' | 'desc'
+      search: "",
     },
   };
 
@@ -888,11 +1101,17 @@
     const editPct = totalImages > 0 ? ((totalEdited / totalImages) * 100).toFixed(1) : "0.0";
     setKpi("kEdit", totalEdited, `${editPct}% of unique images`);
 
+    // Stash filtered set so detail panel can reuse without recomputing the filter pass.
+    state._filteredCache = filtered;
+
     // Meta line
     const totalBuckets = state.records.length;
     $("#filteredPill").textContent = filtered.length === totalBuckets
       ? `Showing all ${fmt(totalBuckets)} buckets`
       : `Showing ${fmt(filtered.length)} of ${fmt(totalBuckets)} buckets`;
+
+    // Re-render the detail panel if a card is selected
+    renderDetail();
   }
 
   function toInt(v) {
@@ -966,6 +1185,244 @@
     }
   }
 
+  // ---------------- Detail panel (drill-down) ----------------
+
+  // Configuration per card: title, eyebrow, columns, how to build per-enterprise rows,
+  // and which key to default-sort by.
+  const DETAIL_CONFIGS = {
+    enterprises: {
+      eyebrow: "Enterprise breakdown",
+      heading: "All enterprises in current view",
+      defaultSort: "images",
+      columns: [
+        { key: "enterprise", label: "Enterprise", type: "text" },
+        { key: "account",    label: "Account type", type: "pill" },
+        { key: "images",     label: "Unique images", type: "num" },
+        { key: "skus",       label: "Unique SKUs",   type: "num" },
+        { key: "edited",     label: "Edited images", type: "num" },
+        { key: "editPct",    label: "Edit %",        type: "pct" },
+      ],
+    },
+    images: {
+      eyebrow: "Image volume by enterprise",
+      heading: "Where images come from",
+      defaultSort: "images",
+      barKey: "images",
+      columns: [
+        { key: "enterprise", label: "Enterprise",     type: "text" },
+        { key: "account",    label: "Account type",   type: "pill" },
+        { key: "images",     label: "Unique images",  type: "num", bar: true },
+        { key: "sharePct",   label: "Share of total", type: "pct" },
+      ],
+    },
+    skus: {
+      eyebrow: "SKU coverage by enterprise",
+      heading: "Where SKUs come from",
+      defaultSort: "skus",
+      barKey: "skus",
+      columns: [
+        { key: "enterprise", label: "Enterprise",     type: "text" },
+        { key: "account",    label: "Account type",   type: "pill" },
+        { key: "skus",       label: "Unique SKUs",    type: "num", bar: true },
+        { key: "sharePct",   label: "Share of total", type: "pct" },
+      ],
+    },
+    edited: {
+      eyebrow: "Edited images by enterprise",
+      heading: "Who needs editing the most",
+      defaultSort: "edited",
+      barKey: "edited",
+      columns: [
+        { key: "enterprise", label: "Enterprise",     type: "text" },
+        { key: "account",    label: "Account type",   type: "pill" },
+        { key: "edited",     label: "Edited",         type: "num", bar: true },
+        { key: "images",     label: "Total images",   type: "num" },
+        { key: "editPct",    label: "Edit %",         type: "pct" },
+      ],
+    },
+  };
+
+  function selectCard(card) {
+    if (state.detail.card === card) {
+      // Toggle off
+      state.detail.card = null;
+      state.detail.sortKey = null;
+    } else {
+      state.detail.card = card;
+      state.detail.sortKey = DETAIL_CONFIGS[card].defaultSort;
+      state.detail.sortDir = "desc";
+      state.detail.search = "";
+      const searchInput = $("#detailSearch");
+      if (searchInput) searchInput.value = "";
+    }
+    // Update card aria-pressed + selected class
+    document.querySelectorAll(".kpi[data-card]").forEach(btn => {
+      const isSel = btn.dataset.card === state.detail.card;
+      btn.classList.toggle("is-selected", isSel);
+      btn.setAttribute("aria-pressed", isSel ? "true" : "false");
+    });
+    renderDetail();
+  }
+
+  // Build per-enterprise rows from the currently filtered buckets.
+  // Same enterprise may appear in multiple buckets (different dates / account types);
+  // we collapse to one row per (enterprise_name, account_type). If you want one row
+  // per enterprise (regardless of account type), drop account_type from the key.
+  function buildEnterpriseRows(filtered) {
+    const acc = new Map(); // key -> aggregate
+    for (const r of filtered) {
+      const ent = (r.enterprise_name || "").trim() || "(empty)";
+      const account = (r.account_type || "").trim() || "(empty)";
+      const key = ent + "||" + account;
+      let row = acc.get(key);
+      if (!row) {
+        row = {
+          enterprise: ent,
+          account,
+          images: 0,
+          edited: 0,
+          rawRows: 0,
+          skuSet: new Set(),
+        };
+        acc.set(key, row);
+      }
+      row.images   += toInt(r.unique_images);
+      row.edited   += toInt(r.edited_images);
+      row.rawRows  += toInt(r.total_rows);
+      for (const s of parseSkuArray(r.sku_ids)) if (s) row.skuSet.add(s);
+    }
+    const rows = [];
+    for (const r of acc.values()) {
+      rows.push({
+        enterprise: r.enterprise,
+        account: r.account,
+        images: r.images,
+        edited: r.edited,
+        skus: r.skuSet.size,
+        editPct: r.images > 0 ? (r.edited / r.images) * 100 : 0,
+      });
+    }
+    return rows;
+  }
+
+  function renderDetail() {
+    const panel = $("#detailPanel");
+    if (!state.detail.card) {
+      panel.hidden = true;
+      return;
+    }
+    const cfg = DETAIL_CONFIGS[state.detail.card];
+    panel.hidden = false;
+    $("#detailEyebrow").textContent = cfg.eyebrow;
+    $("#detailHeading").textContent = cfg.heading;
+
+    const filtered = state._filteredCache || [];
+    let rows = buildEnterpriseRows(filtered);
+
+    // Compute share-of-total for cards that need it (images, skus)
+    if (state.detail.card === "images") {
+      const total = rows.reduce((s, r) => s + r.images, 0);
+      for (const r of rows) r.sharePct = total > 0 ? (r.images / total) * 100 : 0;
+    } else if (state.detail.card === "skus") {
+      // For SKUs, share is approximate (same SKU can appear under multiple enterprises)
+      const total = rows.reduce((s, r) => s + r.skus, 0);
+      for (const r of rows) r.sharePct = total > 0 ? (r.skus / total) * 100 : 0;
+    }
+
+    // Apply search
+    const q = state.detail.search.trim().toLowerCase();
+    if (q) rows = rows.filter(r => r.enterprise.toLowerCase().includes(q));
+
+    // Apply sort
+    const sortKey = state.detail.sortKey || cfg.defaultSort;
+    const dir = state.detail.sortDir === "asc" ? 1 : -1;
+    rows.sort((a, b) => {
+      const av = a[sortKey], bv = b[sortKey];
+      if (typeof av === "string" && typeof bv === "string") {
+        return av.localeCompare(bv) * dir;
+      }
+      return ((av || 0) - (bv || 0)) * dir;
+    });
+
+    // Compute totals across visible rows
+    const totals = rows.reduce((t, r) => {
+      t.images += r.images || 0;
+      t.skus   += r.skus   || 0;
+      t.edited += r.edited || 0;
+      return t;
+    }, { images: 0, skus: 0, edited: 0 });
+    const totalEditPct = totals.images > 0 ? (totals.edited / totals.images) * 100 : 0;
+
+    // Find max for bar scaling
+    const barKey = cfg.barKey;
+    const maxVal = barKey ? Math.max(0, ...rows.map(r => r[barKey] || 0)) : 0;
+
+    // Render thead
+    const thead = panel.querySelector("thead");
+    thead.innerHTML = "<tr>" + cfg.columns.map(c => {
+      const isNumeric = c.type === "num" || c.type === "pct";
+      const arrow = sortKey === c.key
+        ? `<span class="sort-ind">${state.detail.sortDir === "asc" ? "▲" : "▼"}</span>`
+        : "";
+      return `<th class="${isNumeric ? "num" : ""}" data-key="${c.key}">${escapeHtml(c.label)}${arrow}</th>`;
+    }).join("") + "</tr>";
+
+    // Render tbody
+    const tbody = panel.querySelector("tbody");
+    const cellHTML = (r, c) => {
+      const v = r[c.key];
+      if (c.type === "text") return `<td>${escapeHtml(v || "")}</td>`;
+      if (c.type === "pill") return `<td><span class="acct-pill">${escapeHtml(v || "—")}</span></td>`;
+      if (c.type === "pct")  return `<td class="num">${(v || 0).toFixed(1)}%</td>`;
+      if (c.type === "num") {
+        if (c.bar && maxVal > 0) {
+          const w = Math.max(4, Math.round((v / maxVal) * 80));
+          return `<td class="num"><span class="bar" style="width:${w}px"></span>${fmt(v || 0)}</td>`;
+        }
+        return `<td class="num">${fmt(v || 0)}</td>`;
+      }
+      return `<td>${escapeHtml(String(v ?? ""))}</td>`;
+    };
+
+    let html = rows.map(r => "<tr>" + cfg.columns.map(c => cellHTML(r, c)).join("") + "</tr>").join("");
+    if (rows.length === 0) {
+      html = `<tr><td colspan="${cfg.columns.length}" class="muted" style="padding:32px 18px;text-align:center;">No matching enterprises.</td></tr>`;
+    } else {
+      // Totals row
+      const totalCells = cfg.columns.map(c => {
+        if (c.key === "enterprise") return `<td><strong>Total · ${fmt(rows.length)} enterprises</strong></td>`;
+        if (c.key === "account")    return `<td class="muted">—</td>`;
+        if (c.key === "images")     return `<td class="num">${fmt(totals.images)}</td>`;
+        if (c.key === "skus")       return `<td class="num">${fmt(totals.skus)}</td>`;
+        if (c.key === "edited")     return `<td class="num">${fmt(totals.edited)}</td>`;
+        if (c.key === "editPct")    return `<td class="num">${totalEditPct.toFixed(1)}%</td>`;
+        if (c.key === "sharePct")   return `<td class="num">100.0%</td>`;
+        return `<td></td>`;
+      }).join("");
+      html += `<tr class="total-row">${totalCells}</tr>`;
+    }
+    tbody.innerHTML = html;
+
+    // Wire sortable header clicks (re-bind each render)
+    thead.querySelectorAll("th").forEach(th => {
+      th.addEventListener("click", () => {
+        const k = th.dataset.key;
+        if (state.detail.sortKey === k) {
+          state.detail.sortDir = state.detail.sortDir === "asc" ? "desc" : "asc";
+        } else {
+          state.detail.sortKey = k;
+          state.detail.sortDir = "desc";
+        }
+        renderDetail();
+      });
+    });
+
+    // Footer
+    $("#detailFoot").innerHTML = `
+      <span>${fmt(rows.length)} ${rows.length === 1 ? "enterprise" : "enterprises"}${q ? ` matching "${escapeHtml(q)}"` : ""}</span>
+      <span>click column to sort</span>`;
+  }
+
   // ---------------- Init ----------------
   function init() {
     // Multi-selects
@@ -998,6 +1455,29 @@
 
     // Sync button — forces a fresh fetch from Metabase
     $("#syncBtn").addEventListener("click", () => fetchData(true));
+
+    // KPI cards — clickable drill-down
+    document.querySelectorAll(".kpi[data-card]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        // Don't open detail until we have data
+        if (btn.classList.contains("loading")) return;
+        selectCard(btn.dataset.card);
+      });
+    });
+
+    // Detail panel close button
+    $("#detailClose").addEventListener("click", () => selectCard(state.detail.card));
+
+    // Detail panel search
+    $("#detailSearch").addEventListener("input", (e) => {
+      state.detail.search = e.target.value;
+      renderDetail();
+    });
+
+    // Escape closes the detail panel
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && state.detail.card) selectCard(state.detail.card);
+    });
 
     // Initial pull
     fetchData(false);
