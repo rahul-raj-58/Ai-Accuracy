@@ -497,6 +497,71 @@
     .detail-actions { width: 100%; justify-content: space-between; }
   }
 
+  /* ---------- Trend visualizations ---------- */
+  .trends {
+    margin-bottom: 28px;
+  }
+  .trend-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+  .trend-card {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    padding: 20px 24px;
+    box-shadow: var(--shadow);
+  }
+  .trend-header {
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 12px;
+  }
+  .trend-header h3 {
+    font-family: "Fraunces", serif;
+    font-weight: 500;
+    font-size: 16px;
+    margin: 0 0 4px 0;
+    letter-spacing: -0.01em;
+  }
+  .trend-sub {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0;
+  }
+  .trend-canvas {
+    width: 100%;
+    max-height: 280px;
+    margin-bottom: 12px;
+  }
+  .trend-legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-left: 8px;
+    padding-top: 2px;
+  }
+
+  @media (max-width: 1100px) {
+    .trend-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .detail-head { flex-direction: column; align-items: flex-start; }
+    .detail-search { width: 100%; }
+    .detail-actions { width: 100%; justify-content: space-between; }
+  }
+
   /* ---------- Meta / footer line ---------- */
   .meta-line {
     display: flex;
@@ -683,6 +748,32 @@
       </table>
     </div>
     <div class="detail-foot" id="detailFoot"></div>
+  </section>
+
+  <!-- Trend lines: images, edited images, AI accuracy over time -->
+  <section class="trends" id="trendsSection" hidden>
+    <div class="trend-grid">
+      <div class="trend-card">
+        <div class="trend-header">
+          <h3>Daily trend · Images & edits</h3>
+          <p class="trend-sub">unique images and edited images by date</p>
+        </div>
+        <canvas id="trendCanvas1" class="trend-canvas" height="240"></canvas>
+        <div class="trend-legend">
+          <span class="legend-item" style="border-left: 3px solid #ff4d1f;"><strong>Unique images</strong></span>
+          <span class="legend-item" style="border-left: 3px solid #a35400;"><strong>Edited images</strong></span>
+          <span class="legend-item" style="border-left: 3px solid #8a8475; opacity: 0.6;"><strong>AI accuracy %</strong></span>
+        </div>
+      </div>
+      <div class="trend-card">
+        <div class="trend-header">
+          <h3>Account type breakdown</h3>
+          <p class="trend-sub">images by account type over time</p>
+        </div>
+        <canvas id="trendCanvas2" class="trend-canvas" height="240"></canvas>
+        <div class="trend-legend" id="acctLegend"></div>
+      </div>
+    </div>
   </section>
 
   <div class="meta-line">
@@ -1112,6 +1203,9 @@
 
     // Re-render the detail panel if a card is selected
     renderDetail();
+
+    // Re-render trend charts
+    renderTrends();
   }
 
   function toInt(v) {
@@ -1421,6 +1515,318 @@
     $("#detailFoot").innerHTML = `
       <span>${fmt(rows.length)} ${rows.length === 1 ? "enterprise" : "enterprises"}${q ? ` matching "${escapeHtml(q)}"` : ""}</span>
       <span>click column to sort</span>`;
+  }
+
+  // ---------------- Trend lines ----------------
+
+  function buildTrendData(filtered) {
+    // Group by createdDate, compute per-date metrics
+    const byDate = new Map();
+    for (const r of filtered) {
+      const d = (r.createdDate || "").trim();
+      if (!d) continue;
+      let bucket = byDate.get(d);
+      if (!bucket) {
+        bucket = {
+          date: d,
+          images: 0,
+          edited: 0,
+          byAccount: new Map(), // account_type -> { images, edited }
+        };
+        byDate.set(d, bucket);
+      }
+      bucket.images += toInt(r.unique_images);
+      bucket.edited += toInt(r.edited_images);
+
+      const acct = (r.account_type || "").trim() || "—";
+      let ab = bucket.byAccount.get(acct);
+      if (!ab) {
+        ab = { images: 0, edited: 0 };
+        bucket.byAccount.set(acct, ab);
+      }
+      ab.images += toInt(r.unique_images);
+      ab.edited += toInt(r.edited_images);
+    }
+
+    // Sort by date
+    const dates = [...byDate.keys()].sort();
+    const trends = dates.map(d => byDate.get(d));
+
+    return trends;
+  }
+
+  function drawLineChart(canvasId, trends, config) {
+    const canvas = $(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const w = canvas.offsetWidth;
+    const h = canvas.offsetHeight;
+    canvas.width = w;
+    canvas.height = h;
+
+    if (trends.length === 0) {
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--ink-faint");
+      ctx.font = "12px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("No data", w / 2, h / 2);
+      return;
+    }
+
+    const padding = { left: 40, right: 20, top: 20, bottom: 40 };
+    const plotW = w - padding.left - padding.right;
+    const plotH = h - padding.top - padding.bottom;
+
+    // Compute scales
+    const xScale = plotW / (trends.length - 1 || 1);
+    const allValues = [];
+    config.lines.forEach(line => {
+      trends.forEach(t => {
+        const v = line.getValue(t);
+        if (v !== null && v !== undefined) allValues.push(v);
+      });
+    });
+    const maxVal = Math.max(...allValues, 1);
+    const yScale = plotH / maxVal;
+
+    // Draw grid + axes
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--rule");
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 2]);
+    for (let i = 0; i <= 5; i++) {
+      const y = padding.top + (plotH * i / 5);
+      ctx.beginPath();
+      ctx.moveTo(padding.left, y);
+      ctx.lineTo(w - padding.right, y);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // Draw axes
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--ink-faint");
+    ctx.beginPath();
+    ctx.moveTo(padding.left, padding.top);
+    ctx.lineTo(padding.left, h - padding.bottom);
+    ctx.lineTo(w - padding.right, h - padding.bottom);
+    ctx.stroke();
+
+    // Draw lines
+    config.lines.forEach(line => {
+      ctx.strokeStyle = line.color;
+      ctx.lineWidth = line.width || 2;
+      ctx.beginPath();
+      let first = true;
+      trends.forEach((t, i) => {
+        const v = line.getValue(t);
+        if (v === null || v === undefined) return;
+        const x = padding.left + i * xScale;
+        const y = h - padding.bottom - (v * yScale);
+        if (first) {
+          ctx.moveTo(x, y);
+          first = false;
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+      ctx.stroke();
+    });
+
+    // Draw date labels
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--ink-faint");
+    ctx.font = "11px 'JetBrains Mono', monospace";
+    ctx.textAlign = "center";
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--ink-soft");
+    trends.forEach((t, i) => {
+      if (trends.length > 7 && i % 2 !== 0) return; // skip labels if crowded
+      const x = padding.left + i * xScale;
+      const dateStr = t.date.substring(5); // YYYY-MM-DD → MM-DD
+      ctx.fillText(dateStr, x, h - 10);
+    });
+
+    // Y-axis labels
+    ctx.textAlign = "right";
+    for (let i = 0; i <= 5; i++) {
+      const y = padding.top + (plotH * i / 5);
+      const val = Math.round(maxVal * (5 - i) / 5);
+      ctx.fillText(fmt(val), padding.left - 8, y + 4);
+    }
+  }
+
+  function drawStackedAreaChart(canvasId, trends, acctColors) {
+    const canvas = $(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const w = canvas.offsetWidth;
+    const h = canvas.offsetHeight;
+    canvas.width = w;
+    canvas.height = h;
+
+    if (trends.length === 0) {
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--ink-faint");
+      ctx.font = "12px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("No data", w / 2, h / 2);
+      return;
+    }
+
+    const padding = { left: 40, right: 20, top: 20, bottom: 40 };
+    const plotW = w - padding.left - padding.right;
+    const plotH = h - padding.top - padding.bottom;
+
+    // Compute stacked values per date
+    const allAccts = new Set();
+    trends.forEach(t => {
+      t.byAccount.forEach((_, acct) => allAccts.add(acct));
+    });
+    const acctList = [...allAccts].sort();
+
+    // Build stacked data
+    const stackedData = trends.map(t => {
+      const vals = {};
+      let cumul = 0;
+      for (const acct of acctList) {
+        const ab = t.byAccount.get(acct) || { images: 0, edited: 0 };
+        const v = ab.images;
+        vals[acct] = { value: v, cumul: cumul, cumlNext: cumul + v };
+        cumul += v;
+      }
+      vals._total = cumul;
+      return vals;
+    });
+
+    const maxTotal = Math.max(...stackedData.map(d => d._total), 1);
+    const xScale = plotW / (trends.length - 1 || 1);
+    const yScale = plotH / maxTotal;
+
+    // Draw grid
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--rule");
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 2]);
+    for (let i = 0; i <= 5; i++) {
+      const y = padding.top + (plotH * i / 5);
+      ctx.beginPath();
+      ctx.moveTo(padding.left, y);
+      ctx.lineTo(w - padding.right, y);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // Draw axes
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--ink-faint");
+    ctx.beginPath();
+    ctx.moveTo(padding.left, padding.top);
+    ctx.lineTo(padding.left, h - padding.bottom);
+    ctx.lineTo(w - padding.right, h - padding.bottom);
+    ctx.stroke();
+
+    // Draw stacked areas
+    for (let ai = acctList.length - 1; ai >= 0; ai--) {
+      const acct = acctList[ai];
+      const color = acctColors[acct] || "#999";
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.7;
+      ctx.beginPath();
+      let first = true;
+      stackedData.forEach((stacked, i) => {
+        const x = padding.left + i * xScale;
+        const top = stacked[acct];
+        const y = h - padding.bottom - (top.cumlNext * yScale);
+        if (first) {
+          ctx.moveTo(x, y);
+          first = false;
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+      // Trace back along the bottom
+      for (let i = stackedData.length - 1; i >= 0; i--) {
+        const stacked = stackedData[i];
+        const x = padding.left + i * xScale;
+        const top = stacked[acct];
+        const y = h - padding.bottom - (top.cumul * yScale);
+        ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    // Draw date labels
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--ink-soft");
+    ctx.font = "11px 'JetBrains Mono', monospace";
+    ctx.textAlign = "center";
+    trends.forEach((t, i) => {
+      if (trends.length > 7 && i % 2 !== 0) return;
+      const x = padding.left + i * xScale;
+      const dateStr = t.date.substring(5);
+      ctx.fillText(dateStr, x, h - 10);
+    });
+
+    // Y-axis labels
+    ctx.textAlign = "right";
+    for (let i = 0; i <= 5; i++) {
+      const y = padding.top + (plotH * i / 5);
+      const val = Math.round(maxTotal * (5 - i) / 5);
+      ctx.fillText(fmt(val), padding.left - 8, y + 4);
+    }
+  }
+
+  function renderTrends() {
+    const filtered = state._filteredCache || [];
+    if (filtered.length === 0) {
+      $("#trendsSection").hidden = true;
+      return;
+    }
+
+    const trends = buildTrendData(filtered);
+    if (trends.length === 0) {
+      $("#trendsSection").hidden = true;
+      return;
+    }
+
+    $("#trendsSection").hidden = false;
+
+    // Chart 1: Images, edits, AI accuracy over time
+    drawLineChart("trendCanvas1", trends, {
+      lines: [
+        {
+          getValue: (t) => t.images,
+          color: "#ff4d1f",
+          width: 2.5,
+        },
+        {
+          getValue: (t) => t.edited,
+          color: "#a35400",
+          width: 2.5,
+        },
+        {
+          getValue: (t) => t.images > 0 ? (t.edited / t.images) * 100 : 0,
+          color: "#8a8475",
+          width: 1.5,
+        },
+      ],
+    });
+
+    // Chart 2: Account type breakdown
+    const acctColors = {
+      "GROUP_DEALER": "#2a4a7f",
+      "INDIVIDUAL_DEALER": "#1f7a4d",
+      "PARTNER": "#ff4d1f",
+      "—": "#999",
+    };
+
+    drawStackedAreaChart("trendCanvas2", trends, acctColors);
+
+    // Build legend for account types
+    const allAccts = new Set();
+    trends.forEach(t => {
+      t.byAccount.forEach((_, acct) => allAccts.add(acct));
+    });
+    const acctList = [...allAccts].sort();
+    const legendHTML = acctList.map(acct => {
+      const color = acctColors[acct] || "#999";
+      return `<span class="legend-item" style="border-left: 3px solid ${color};"><strong>${escapeHtml(acct)}</strong></span>`;
+    }).join("");
+    $("#acctLegend").innerHTML = legendHTML;
   }
 
   // ---------------- Init ----------------
