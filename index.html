@@ -559,13 +559,14 @@
   ];
 
   let loadProgressTimer = null;
+  let pollAbort = false;        // user-triggered stop
+  let isPolling = false;
 
-  function startLoadProgress() {
+  function startLoadProgress(totalT0) {
     stopLoadProgress();
-    const t0 = Date.now();
     const tick = () => {
-      const sec = Math.round((Date.now() - t0) / 1000);
-      showInfo(`Loading from Metabase… ${sec}s elapsed. Large CSV exports can take up to a minute on first load.`);
+      const sec = Math.round((Date.now() - totalT0) / 1000);
+      showInfo(`Loading from Metabase… ${sec}s elapsed. Large CSV exports can take 1–3 minutes on first load; the dashboard will populate automatically.`);
     };
     tick();
     loadProgressTimer = setInterval(tick, 1000);
@@ -574,68 +575,113 @@
     if (loadProgressTimer) { clearInterval(loadProgressTimer); loadProgressTimer = null; }
   }
 
+  // Single attempt: hits /api/data once and returns the parsed JSON.
+  async function singleFetch(force) {
+    const fieldsQS = "fields=" + encodeURIComponent(FIELDS.join(","));
+    const url = force
+      ? `/api/data?refresh=1&${fieldsQS}&_t=${Date.now()}`
+      : `/api/data?${fieldsQS}`;
+    // Browser-side abort if a single request hangs absurdly long (shouldn't happen — server bounds at 50s)
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 65_000);
+    try {
+      const res = await fetch(url, { signal: controller.signal });
+      return await res.json();
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
+  // Long-polling loop: keeps calling /api/data until status === "ready" or error.
   async function fetchData(force = false) {
+    if (isPolling && !force) return; // already polling
+    isPolling = true;
+    pollAbort = false;
+    const totalT0 = Date.now();
+    const hadDataBefore = state.records.length > 0;
+
     try {
       setSyncing(true);
-      // Show a live progress message — the first cold-start fetch can take ~30-60s.
-      // (Don't show it if we already have data; the spinner on the button is enough.)
-      const hadDataBefore = state.records.length > 0;
-      if (!hadDataBefore) startLoadProgress();
+      if (!hadDataBefore) startLoadProgress(totalT0);
 
-      const fieldsQS = "fields=" + encodeURIComponent(FIELDS.join(","));
-      const url = force
-        ? `/api/data?refresh=1&${fieldsQS}`
-        : `/api/data?${fieldsQS}`;
-      const res = await fetch(url); // edge handles caching
-      const json = await res.json();
-      stopLoadProgress();
-
-      if (!json.ok) {
-        // Server returned a friendly error message; show it and let the user retry via Sync.
-        throw new Error(json.error || `HTTP ${res.status}`);
-      }
-
-      // Pre-parse createdDate ONCE for fast filtering.
-      const records = json.records || [];
-      for (const r of records) {
-        const s = r.createdDate;
-        if (s) {
-          const d = new Date(s);
-          r._ts = isNaN(d) ? NaN : d.getTime();
-        } else {
-          r._ts = NaN;
+      let attempts = 0;
+      while (!pollAbort) {
+        attempts++;
+        let json;
+        try {
+          json = await singleFetch(force && attempts === 1); // only force on the first attempt
+        } catch (netErr) {
+          // Network or browser-side timeout — back off briefly and retry
+          if (pollAbort) break;
+          await sleep(2000);
+          continue;
         }
+
+        if (!json || json.ok === false) {
+          throw new Error((json && json.error) || "Server returned an error.");
+        }
+
+        if (json.status === "loading") {
+          // Server is still fetching from Metabase. Loop immediately; the server already
+          // long-polled internally for ~50s. A tiny gap avoids tight-looping if something
+          // misbehaves.
+          await sleep(500);
+          continue;
+        }
+
+        if (json.status === "error") {
+          throw new Error(json.error || "Metabase fetch failed.");
+        }
+
+        // status === "ready" — we have data
+        commitData(json, totalT0);
+        return;
       }
-      state.records = records;
-      state.fetchedAt = json.fetchedAt || Date.now();
-
-      $("#lastSync").textContent = state.fetchedAt ? fmtDateTime(state.fetchedAt) : "—";
-      $("#rowCount").textContent = fmt(state.records.length);
-
-      let pillText = "fresh pull";
-      if (json.cached) pillText = "served from cache";
-      else if (json.stale) pillText = "stale · refreshing in background";
-      $("#cachePill").textContent = pillText;
-      $("#cachePill").classList.toggle("alert", !json.cached);
-
-      // If stale was served, the background fetch will have new data shortly — re-poll once.
-      if (json.stale && !force) {
-        setTimeout(() => fetchData(false), 15000);
-      }
-
-      // Build filter options once we know the columns / values
-      buildEnterpriseOptions();
-      buildAccountOptions();
-      hideError();
-      applyAndRender();
-
-      nextRefreshAt = Date.now() + REFRESH_MS;
     } catch (err) {
       stopLoadProgress();
       showError("Couldn't load data: " + err.message + " — click Sync to retry.");
     } finally {
+      isPolling = false;
       setSyncing(false);
     }
+  }
+
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  function commitData(json, totalT0) {
+    stopLoadProgress();
+
+    const records = json.records || [];
+    for (const r of records) {
+      const s = r.createdDate;
+      if (s) {
+        const d = new Date(s);
+        r._ts = isNaN(d) ? NaN : d.getTime();
+      } else {
+        r._ts = NaN;
+      }
+    }
+    state.records = records;
+    state.fetchedAt = json.fetchedAt || Date.now();
+
+    $("#lastSync").textContent = state.fetchedAt ? fmtDateTime(state.fetchedAt) : "—";
+    $("#rowCount").textContent = fmt(state.records.length);
+
+    let pillText = "fresh pull";
+    if (json.backgroundRefreshing) pillText = "showing data · refreshing in background";
+    $("#cachePill").textContent = pillText;
+    $("#cachePill").classList.toggle("alert", !!json.backgroundRefreshing);
+
+    // If a background refresh is still running, poll again in 10s to pick up newer data.
+    if (json.backgroundRefreshing) {
+      setTimeout(() => { if (!isPolling) fetchData(false); }, 10000);
+    }
+
+    buildEnterpriseOptions();
+    buildAccountOptions();
+    hideError();
+    applyAndRender();
+    nextRefreshAt = Date.now() + REFRESH_MS;
   }
 
   function showError(msg) {
