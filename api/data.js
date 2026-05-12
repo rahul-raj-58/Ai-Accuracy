@@ -1,50 +1,43 @@
-// /api/data.js — Vercel serverless function (long-poll pattern)
+// /api/data.js — Vercel serverless function (long-poll pattern, JSON endpoint)
 //
-// Why this design:
-//   Vercel functions have a 60s execution limit per request. Metabase CSV
-//   exports for large public questions can exceed that. We can't make any
-//   single request wait long enough on a cold start.
+// IMPORTANT CHANGE: we now hit Metabase's .json endpoint instead of .csv.
+// For large result sets, Metabase's CSV export can hang indefinitely (it has
+// to serialize and escape every cell). The JSON endpoint streams results
+// faster and is more reliable for big questions.
 //
-//   Solution: a single shared in-memory fetch promise (`inflight`) that
-//   outlives any individual HTTP request. Each /api/data call waits up to
-//   ~50s for it, then returns whatever state we have. The browser polls
-//   every few seconds, so consecutive polls keep the same warm lambda
-//   alive while the background fetch makes progress.
-//
-// States returned to the client:
-//   - { status: "loading", elapsedMs }  — fetch in progress
-//   - { status: "ready", records, ... } — data available
-//   - { status: "error", error }        — fetch failed; client can retry
+// Architecture:
+//   - Shared module-level `inflight` promise that outlives any single request.
+//   - Each /api/data call waits up to 50s for it, then returns
+//     status=loading or status=ready. Browser long-polls.
+//   - Memory cache: 1h. Edge cache: 10min fresh + 1h stale-while-revalidate.
 //
 // Query params:
 //   ?refresh=1     — abandon current cache and start a fresh fetch
 //   ?fields=a,b,c  — return only those columns (smaller payload)
 
-const METABASE_URL =
-  "https://metabase.spyne.ai/public/question/8870098d-e121-4caa-9e9f-69c31ce9c50e.csv";
+// We try JSON first; if that fails for any reason we fall back to CSV.
+const METABASE_BASE =
+  "https://metabase.spyne.ai/public/question/8870098d-e121-4caa-9e9f-69c31ce9c50e";
+const METABASE_JSON_URL = METABASE_BASE + ".json";
+const METABASE_CSV_URL  = METABASE_BASE + ".csv";
 
 module.exports.config = { maxDuration: 60 };
 
-const TTL_MS                 = 60 * 60 * 1000;  // memory cache freshness: 1h
-const PER_REQUEST_WAIT_MS    = 50_000;          // each request waits up to 50s for inflight
-const FETCH_HARD_TIMEOUT_MS  = 300_000;         // total fetch timeout (5 min — generous)
+const TTL_MS                 = 60 * 60 * 1000;
+const PER_REQUEST_WAIT_MS    = 50_000;
+const FETCH_HARD_TIMEOUT_MS  = 600_000; // 10 min total (some Metabase exports really are this slow)
 const CDN_FRESH_SEC          = 600;
 const CDN_STALE_SEC          = 3600;
 
-// Shared module state — persists across requests on a warm lambda.
 let cache = { data: null, fetchedAt: 0, lastError: null };
-let inflight = null;        // { promise, startedAt }
+let inflight = null;
 
-// ---- RFC-4180-ish CSV parser ----
+// ---- Parsers ----
 function parseCSV(text) {
   if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
   const rows = [];
-  let row = [];
-  let field = "";
-  let inQuotes = false;
+  let row = [], field = "", inQuotes = false, i = 0;
   const len = text.length;
-  let i = 0;
-
   while (i < len) {
     const c = text[i];
     if (inQuotes) {
@@ -61,7 +54,6 @@ function parseCSV(text) {
     field += c; i++;
   }
   if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
-
   if (rows.length === 0) return { headers: [], records: [] };
   const headers = rows[0].map(h => h.trim());
   const records = [];
@@ -75,38 +67,80 @@ function parseCSV(text) {
   return { headers, records };
 }
 
+// Metabase JSON shape: array of objects, keys = column names.
+function parseMetabaseJSON(text) {
+  const arr = JSON.parse(text);
+  if (!Array.isArray(arr)) throw new Error("Metabase JSON: expected array");
+  if (arr.length === 0) return { headers: [], records: [] };
+  const headers = Object.keys(arr[0]);
+  // Coerce values to strings so the rest of the pipeline behaves like the CSV path.
+  const records = arr.map(row => {
+    const o = {};
+    for (const k of headers) {
+      const v = row[k];
+      o[k] = v === null || v === undefined ? "" : (typeof v === "string" ? v : String(v));
+    }
+    return o;
+  });
+  return { headers, records };
+}
+
+async function tryFetch(url, accept, timeoutMs) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "spyne-dashboard/1.0",
+        "Accept": accept,
+        "Accept-Encoding": "gzip, deflate, br",
+      },
+      signal: ctrl.signal,
+    });
+    if (!res.ok) throw new Error(`Metabase ${url.endsWith(".json") ? "JSON" : "CSV"} responded ${res.status} ${res.statusText}`);
+    return await res.text();
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 function startFetch() {
   if (inflight) return inflight;
 
   const startedAt = Date.now();
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), FETCH_HARD_TIMEOUT_MS);
 
   const promise = (async () => {
+    let parsed;
+    let usedFallback = false;
     try {
-      const res = await fetch(METABASE_URL, {
-        headers: {
-          "User-Agent": "spyne-dashboard/1.0",
-          "Accept-Encoding": "gzip, deflate, br",
-        },
-        signal: ctrl.signal,
-      });
-      if (!res.ok) throw new Error(`Metabase responded ${res.status} ${res.statusText}`);
-      const text = await res.text();
-      const parsed = parseCSV(text);
-      cache = { data: parsed, fetchedAt: Date.now(), lastError: null };
-      return parsed;
-    } catch (err) {
-      cache.lastError = String(err && err.message || err);
-      throw err;
-    } finally {
-      clearTimeout(timer);
-      inflight = null;
+      // Prefer JSON for large datasets.
+      const text = await tryFetch(METABASE_JSON_URL, "application/json", FETCH_HARD_TIMEOUT_MS);
+      parsed = parseMetabaseJSON(text);
+    } catch (jsonErr) {
+      // Fall back to CSV
+      try {
+        const text = await tryFetch(METABASE_CSV_URL, "text/csv", FETCH_HARD_TIMEOUT_MS);
+        parsed = parseCSV(text);
+        usedFallback = true;
+      } catch (csvErr) {
+        const msg = `JSON: ${jsonErr.message} | CSV: ${csvErr.message}`;
+        cache.lastError = msg;
+        inflight = null;
+        throw new Error(msg);
+      }
     }
+    cache = {
+      data: parsed,
+      fetchedAt: Date.now(),
+      lastError: null,
+      source: usedFallback ? "csv" : "json",
+      fetchDurationMs: Date.now() - startedAt,
+    };
+    inflight = null;
+    return parsed;
   })();
 
   inflight = { promise, startedAt };
-  // Swallow unhandled rejection — callers handle errors explicitly via cache.lastError.
   promise.catch(() => {});
   return inflight;
 }
@@ -141,7 +175,6 @@ function project(data, wantedFields) {
   };
 }
 
-// Wait up to `ms` for the inflight promise to settle. Never throws.
 function waitUpTo(promise, ms) {
   return new Promise(resolve => {
     let done = false;
@@ -169,39 +202,27 @@ module.exports = async (req, res) => {
     const haveCache = !!cache.data;
     const fresh = haveCache && (now - cache.fetchedAt) < TTL_MS;
 
-    // ---- Decide what to do ----
     if (forceRefresh) {
-      // Sync button: start a NEW fetch (don't reuse a stale inflight from before refresh).
       inflight = null;
       cache.lastError = null;
       startFetch();
     } else if (fresh && !inflight) {
-      // Cache is good and nothing in flight — just return cached data.
+      // good, just serve cache
     } else if (!haveCache && !inflight) {
-      // Cold start, nothing in flight — kick off the fetch.
       startFetch();
     } else if (haveCache && !fresh && !inflight) {
-      // Stale cache, no fetch in flight — refresh in background.
       startFetch();
     }
 
-    // ---- If a fetch is in flight, wait up to PER_REQUEST_WAIT_MS for it ----
     if (inflight) {
       const inflightStartedAt = inflight.startedAt;
-      // On a fresh-cache hit we won't even enter this branch. Otherwise: wait.
-      // If we have stale cache, only wait a few seconds (we have something to return).
-      const waitMs = haveCache ? 3_000 : PER_REQUEST_WAIT_MS;
+      const waitMs = haveCache && !forceRefresh ? 2_000 : PER_REQUEST_WAIT_MS;
       const result = await waitUpTo(inflight.promise, waitMs);
-
-      // If forced refresh and we just started, treat haveCache as false for response purposes
       const elapsedMs = Date.now() - inflightStartedAt;
 
-      if (result.settled && !result.error) {
-        // Fetch completed — fall through to send fresh data
-      } else if (result.settled && result.error) {
-        // Fetch failed
+      if (result.settled && result.error) {
         if (haveCache && !forceRefresh) {
-          // Serve stale + note error
+          // serve stale + error note
         } else {
           res.setHeader("Cache-Control", "no-store");
           res.status(200).json({
@@ -212,32 +233,26 @@ module.exports = async (req, res) => {
           });
           return;
         }
-      } else {
-        // Still loading after our wait window.
+      } else if (!result.settled) {
+        // still loading
         if (haveCache && !forceRefresh) {
-          // Serve the stale data immediately; client will poll again to pick up fresh.
+          // fall through, serve stale
         } else {
           res.setHeader("Cache-Control", "no-store");
           res.status(200).json({
             ok: true,
             status: "loading",
             elapsedMs,
-            message: "Metabase export is still running. Keep polling.",
+            message: "Metabase export still running.",
           });
           return;
         }
       }
     }
 
-    // ---- We have data to send ----
     if (!cache.data) {
-      // Should be rare — defensive fallback
       res.setHeader("Cache-Control", "no-store");
-      res.status(200).json({
-        ok: true,
-        status: "loading",
-        elapsedMs: 0,
-      });
+      res.status(200).json({ ok: true, status: "loading", elapsedMs: 0 });
       return;
     }
 
@@ -257,6 +272,8 @@ module.exports = async (req, res) => {
       ok: true,
       status: "ready",
       fetchedAt: cache.fetchedAt,
+      source: cache.source || "unknown",
+      fetchDurationMs: cache.fetchDurationMs || null,
       backgroundRefreshing: !!inflight,
       lastError: cache.lastError,
       rowCount: out.records.length,
@@ -265,10 +282,6 @@ module.exports = async (req, res) => {
     });
   } catch (err) {
     res.setHeader("Cache-Control", "no-store");
-    res.status(500).json({
-      ok: false,
-      status: "error",
-      error: String(err && err.message || err),
-    });
+    res.status(500).json({ ok: false, status: "error", error: String(err && err.message || err) });
   }
 };
