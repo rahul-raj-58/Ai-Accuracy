@@ -502,7 +502,7 @@
   };
 
   const REFRESH_MS = 60 * 60 * 1000; // 1 hour
-  let nextRefreshAt = Date.now() + REFRESH_MS;
+  let nextRefreshAt = null;  // null until first successful load
   let countdownTimer = null;
 
   // ---------------- Helpers ----------------
@@ -566,7 +566,17 @@
     stopLoadProgress();
     const tick = () => {
       const sec = Math.round((Date.now() - totalT0) / 1000);
-      showInfo(`Loading from Metabase… ${sec}s elapsed. Large CSV exports can take 1–3 minutes on first load; the dashboard will populate automatically.`);
+      let msg;
+      if (sec < 30) {
+        msg = `Loading from Metabase… ${sec}s elapsed. The dashboard will populate automatically when data arrives.`;
+      } else if (sec < 90) {
+        msg = `Loading from Metabase… ${sec}s elapsed. Large CSV exports can take 1–2 minutes on first load.`;
+      } else if (sec < 180) {
+        msg = `Still loading… ${sec}s elapsed. Metabase is slow on this export — if it doesn't finish in another minute, the query may need to be reduced in Metabase (it returns too many rows).`;
+      } else {
+        msg = `Loading has taken ${sec}s. Metabase isn't returning the CSV in a reasonable time. The query likely returns too many rows — consider aggregating in Metabase, or click Sync to retry.`;
+      }
+      showInfo(msg);
     };
     tick();
     loadProgressTimer = setInterval(tick, 1000);
@@ -887,6 +897,10 @@
 
   // ---------------- Countdown ----------------
   function tickCountdown() {
+    if (nextRefreshAt === null) {
+      $("#countdown").textContent = "—:—";
+      return;
+    }
     const ms = Math.max(0, nextRefreshAt - Date.now());
     const totalSec = Math.floor(ms / 1000);
     const mm = String(Math.floor(totalSec / 60)).padStart(2, "0");
