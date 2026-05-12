@@ -547,15 +547,35 @@
   }
 
   // ---------------- Fetch ----------------
+  // Only ask for the columns we actually render — cuts payload significantly.
+  const FIELDS = [
+    "b.image_id", "sku_id", "createdDate",
+    "image_action", "enterprise_name", "account_type"
+  ];
+
   async function fetchData(force = false) {
     try {
       setSyncing(true);
-      const url = force ? "/api/data?refresh=1" : "/api/data";
-      const res = await fetch(url, { cache: "no-store" });
+      const fieldsQS = "fields=" + encodeURIComponent(FIELDS.join(","));
+      const url = force
+        ? `/api/data?refresh=1&${fieldsQS}`
+        : `/api/data?${fieldsQS}`;
+      const res = await fetch(url); // edge handles caching
       const json = await res.json();
       if (!json.ok) throw new Error(json.error || "Unknown error");
 
-      state.records = json.records || [];
+      // Pre-parse createdDate ONCE — filtering on every keystroke becomes O(n) on cached timestamps.
+      const records = json.records || [];
+      for (const r of records) {
+        const s = r.createdDate;
+        if (s) {
+          const d = new Date(s);
+          r._ts = isNaN(d) ? NaN : d.getTime();
+        } else {
+          r._ts = NaN;
+        }
+      }
+      state.records = records;
       state.fetchedAt = json.fetchedAt || Date.now();
 
       $("#lastSync").textContent = fmtDateTime(state.fetchedAt);
@@ -706,14 +726,16 @@
   function applyAndRender() {
     const f = state.filters;
     const [from, to] = rangeForPreset(f.datePreset, f.from, f.to);
+    const fromTs = from ? from.getTime() : null;
+    const toTs   = to   ? to.getTime()   : null;
 
     const filtered = state.records.filter(r => {
-      // Date filter on createdDate
-      if (from || to) {
-        const d = parseDate(r.createdDate);
-        if (!d) return false;
-        if (from && d < from) return false;
-        if (to && d > to) return false;
+      // Date filter on createdDate (pre-parsed timestamp)
+      if (fromTs !== null || toTs !== null) {
+        const ts = r._ts;
+        if (!ts || isNaN(ts)) return false;
+        if (fromTs !== null && ts < fromTs) return false;
+        if (toTs   !== null && ts > toTs)   return false;
       }
       // Enterprise
       if (f.enterprises.size > 0) {
