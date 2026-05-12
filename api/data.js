@@ -17,8 +17,8 @@
 
 // We try JSON first; if that fails for any reason we fall back to CSV.
 const METABASE_BASE =
-  // "https://metabase.spyne.ai/public/question/8870098d-e121-4caa-9e9f-69c31ce9c50e";
-  "https://metabase.spyne.ai/public/question/84c7f98d-25ac-429c-a138-426255f13ca0"
+  "https://metabase.spyne.ai/public/question/8870098d-e121-4caa-9e9f-69c31ce9c50e";
+ 
 const METABASE_JSON_URL = METABASE_BASE + ".json";
 const METABASE_CSV_URL  = METABASE_BASE + ".csv";
 
