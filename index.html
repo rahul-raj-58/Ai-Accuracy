@@ -1559,10 +1559,16 @@
     const canvas = $(canvasId);
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
-    const w = canvas.offsetWidth;
-    const h = canvas.offsetHeight;
+    
+    // Get container width from parent
+    const container = canvas.parentElement;
+    const w = Math.max(container.offsetWidth - 8, 300); // -8 for padding, min 300
+    const h = 280;
+    
     canvas.width = w;
     canvas.height = h;
+    canvas.style.width = w + "px";
+    canvas.style.height = h + "px";
 
     if (trends.length === 0) {
       ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--ink-faint");
@@ -1572,24 +1578,29 @@
       return;
     }
 
-    const padding = { left: 40, right: 20, top: 20, bottom: 40 };
+    const padding = { left: 50, right: 20, top: 20, bottom: 50 };
     const plotW = w - padding.left - padding.right;
     const plotH = h - padding.top - padding.bottom;
 
     // Compute scales
-    const xScale = plotW / (trends.length - 1 || 1);
+    const xScale = plotW / Math.max(trends.length - 1, 1);
     const allValues = [];
     config.lines.forEach(line => {
       trends.forEach(t => {
         const v = line.getValue(t);
-        if (v !== null && v !== undefined) allValues.push(v);
+        if (v !== null && v !== undefined && typeof v === "number") allValues.push(v);
       });
     });
     const maxVal = Math.max(...allValues, 1);
     const yScale = plotH / maxVal;
 
+    // Get CSS variables for colors
+    const ruleColor = getComputedStyle(document.documentElement).getPropertyValue("--rule").trim();
+    const faintColor = getComputedStyle(document.documentElement).getPropertyValue("--ink-faint").trim();
+    const softColor = getComputedStyle(document.documentElement).getPropertyValue("--ink-soft").trim();
+
     // Draw grid + axes
-    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--rule");
+    ctx.strokeStyle = ruleColor;
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 2]);
     for (let i = 0; i <= 5; i++) {
@@ -1602,7 +1613,8 @@
     ctx.setLineDash([]);
 
     // Draw axes
-    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--ink-faint");
+    ctx.strokeStyle = faintColor;
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(padding.left, padding.top);
     ctx.lineTo(padding.left, h - padding.bottom);
@@ -1613,6 +1625,7 @@
     config.lines.forEach(line => {
       ctx.strokeStyle = line.color;
       ctx.lineWidth = line.width || 2;
+      ctx.setLineDash(line.dash || []);
       ctx.beginPath();
       let first = true;
       trends.forEach((t, i) => {
@@ -1628,26 +1641,28 @@
         }
       });
       ctx.stroke();
+      ctx.setLineDash([]);
     });
 
     // Draw date labels
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--ink-faint");
+    ctx.fillStyle = softColor;
     ctx.font = "11px 'JetBrains Mono', monospace";
     ctx.textAlign = "center";
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--ink-soft");
+    const step = Math.max(1, Math.floor(trends.length / 8)); // max ~8 labels
     trends.forEach((t, i) => {
-      if (trends.length > 7 && i % 2 !== 0) return; // skip labels if crowded
+      if (i % step !== 0 && i !== trends.length - 1) return;
       const x = padding.left + i * xScale;
       const dateStr = t.date.substring(5); // YYYY-MM-DD → MM-DD
-      ctx.fillText(dateStr, x, h - 10);
+      ctx.fillText(dateStr, x, h - 15);
     });
 
     // Y-axis labels
     ctx.textAlign = "right";
+    ctx.fillStyle = faintColor;
     for (let i = 0; i <= 5; i++) {
       const y = padding.top + (plotH * i / 5);
       const val = Math.round(maxVal * (5 - i) / 5);
-      ctx.fillText(fmt(val), padding.left - 8, y + 4);
+      ctx.fillText(fmt(val), padding.left - 12, y + 4);
     }
   }
 
@@ -1655,10 +1670,16 @@
     const canvas = $(canvasId);
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
-    const w = canvas.offsetWidth;
-    const h = canvas.offsetHeight;
+    
+    // Get container width from parent
+    const container = canvas.parentElement;
+    const w = Math.max(container.offsetWidth - 8, 300);
+    const h = 280;
+    
     canvas.width = w;
     canvas.height = h;
+    canvas.style.width = w + "px";
+    canvas.style.height = h + "px";
 
     if (trends.length === 0) {
       ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--ink-faint");
@@ -1668,9 +1689,14 @@
       return;
     }
 
-    const padding = { left: 40, right: 20, top: 20, bottom: 40 };
+    const padding = { left: 50, right: 20, top: 20, bottom: 50 };
     const plotW = w - padding.left - padding.right;
     const plotH = h - padding.top - padding.bottom;
+
+    // Get CSS colors
+    const ruleColor = getComputedStyle(document.documentElement).getPropertyValue("--rule").trim();
+    const faintColor = getComputedStyle(document.documentElement).getPropertyValue("--ink-faint").trim();
+    const softColor = getComputedStyle(document.documentElement).getPropertyValue("--ink-soft").trim();
 
     // Compute stacked values per date
     const allAccts = new Set();
@@ -1694,11 +1720,11 @@
     });
 
     const maxTotal = Math.max(...stackedData.map(d => d._total), 1);
-    const xScale = plotW / (trends.length - 1 || 1);
+    const xScale = plotW / Math.max(trends.length - 1, 1);
     const yScale = plotH / maxTotal;
 
     // Draw grid
-    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--rule");
+    ctx.strokeStyle = ruleColor;
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 2]);
     for (let i = 0; i <= 5; i++) {
@@ -1711,7 +1737,8 @@
     ctx.setLineDash([]);
 
     // Draw axes
-    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--ink-faint");
+    ctx.strokeStyle = faintColor;
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(padding.left, padding.top);
     ctx.lineTo(padding.left, h - padding.bottom);
@@ -1751,22 +1778,24 @@
     }
 
     // Draw date labels
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--ink-soft");
+    ctx.fillStyle = softColor;
     ctx.font = "11px 'JetBrains Mono', monospace";
     ctx.textAlign = "center";
+    const step = Math.max(1, Math.floor(trends.length / 8));
     trends.forEach((t, i) => {
-      if (trends.length > 7 && i % 2 !== 0) return;
+      if (i % step !== 0 && i !== trends.length - 1) return;
       const x = padding.left + i * xScale;
       const dateStr = t.date.substring(5);
-      ctx.fillText(dateStr, x, h - 10);
+      ctx.fillText(dateStr, x, h - 15);
     });
 
     // Y-axis labels
     ctx.textAlign = "right";
+    ctx.fillStyle = faintColor;
     for (let i = 0; i <= 5; i++) {
       const y = padding.top + (plotH * i / 5);
       const val = Math.round(maxTotal * (5 - i) / 5);
-      ctx.fillText(fmt(val), padding.left - 8, y + 4);
+      ctx.fillText(fmt(val), padding.left - 12, y + 4);
     }
   }
 
