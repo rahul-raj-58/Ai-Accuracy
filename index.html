@@ -336,7 +336,7 @@
   }
   .pill.alert { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
 
-  /* ---------- Error banner ---------- */
+  /* ---------- Error / info banner ---------- */
   .err {
     background: #fef2ef;
     color: #8a2a0e;
@@ -348,6 +348,11 @@
     display: none;
   }
   .err.show { display: block; }
+  .err.info {
+    background: #eef4f9;
+    color: #244a73;
+    border-color: #c7d9ea;
+  }
 
   /* ---------- Responsive ---------- */
   @media (max-width: 1100px) {
@@ -564,7 +569,17 @@
       const json = await res.json();
       if (!json.ok) throw new Error(json.error || "Unknown error");
 
-      // Pre-parse createdDate ONCE — filtering on every keystroke becomes O(n) on cached timestamps.
+      // Warm-up case: API replied OK but data isn't ready yet (cold-start Metabase fetch in flight).
+      // Show a friendly message and auto-retry in ~8s.
+      if (json.warmingUp && (!json.records || json.records.length === 0)) {
+        showInfo("Warming up — first load from Metabase can take ~30s. Retrying automatically…");
+        $("#cachePill").textContent = "warming up";
+        $("#cachePill").classList.add("alert");
+        setTimeout(() => fetchData(false), 8000);
+        return;
+      }
+
+      // Pre-parse createdDate ONCE for fast filtering.
       const records = json.records || [];
       for (const r of records) {
         const s = r.createdDate;
@@ -578,10 +593,19 @@
       state.records = records;
       state.fetchedAt = json.fetchedAt || Date.now();
 
-      $("#lastSync").textContent = fmtDateTime(state.fetchedAt);
+      $("#lastSync").textContent = state.fetchedAt ? fmtDateTime(state.fetchedAt) : "—";
       $("#rowCount").textContent = fmt(state.records.length);
-      $("#cachePill").textContent = json.cached ? "served from cache" : "fresh pull";
+
+      let pillText = "fresh pull";
+      if (json.cached) pillText = "served from cache";
+      else if (json.stale) pillText = "stale · refreshing in background";
+      $("#cachePill").textContent = pillText;
       $("#cachePill").classList.toggle("alert", !json.cached);
+
+      // If stale was served, the background fetch will have new data shortly — re-poll once.
+      if (json.stale && !force) {
+        setTimeout(() => fetchData(false), 15000);
+      }
 
       // Build filter options once we know the columns / values
       buildEnterpriseOptions();
@@ -600,9 +624,15 @@
   function showError(msg) {
     const el = $("#errBanner");
     el.textContent = msg;
+    el.classList.remove("info");
     el.classList.add("show");
   }
-  function hideError() { $("#errBanner").classList.remove("show"); }
+  function showInfo(msg) {
+    const el = $("#errBanner");
+    el.textContent = msg;
+    el.classList.add("info", "show");
+  }
+  function hideError() { $("#errBanner").classList.remove("show", "info"); }
 
   function setSyncing(on) {
     const btn = $("#syncBtn");
