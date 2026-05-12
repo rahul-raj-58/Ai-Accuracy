@@ -9,437 +9,121 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 <style>
   :root {
-    --bg:        #0a0b0d;
-    --bg-1:      #101216;
-    --bg-2:      #161a20;
-    --bg-3:      #1d222a;
-    --line:      #232932;
-    --line-2:    #2e3540;
-    --ink:       #e8ecf2;
-    --ink-soft:  #8a93a3;
-    --ink-dim:   #555c6a;
-    --accent:    #00ff9c;
-    --accent-2:  #00c47a;
-    --warn:      #ffb547;
-    --danger:    #ff4d6d;
-    --sans:      'Geist', system-ui, -apple-system, sans-serif;
-    --mono:      'JetBrains Mono', 'Menlo', ui-monospace, monospace;
+    --bg: #0a0b0d; --bg-1: #101216; --bg-2: #161a20; --bg-3: #1d222a;
+    --line: #232932; --line-2: #2e3540;
+    --ink: #e8ecf2; --ink-soft: #8a93a3; --ink-dim: #555c6a;
+    --accent: #00ff9c; --accent-2: #00c47a;
+    --warn: #ffb547; --danger: #ff4d6d; --blue: #5cabff;
+    --sans: 'Geist', system-ui, -apple-system, sans-serif;
+    --mono: 'JetBrains Mono', 'Menlo', ui-monospace, monospace;
   }
-
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
-  body {
-    font-family: var(--sans);
-    background: var(--bg);
-    color: var(--ink);
-    min-height: 100vh;
-    font-feature-settings: "cv11", "ss01";
-    -webkit-font-smoothing: antialiased;
-  }
+  body { font-family: var(--sans); background: var(--bg); color: var(--ink); min-height: 100vh; -webkit-font-smoothing: antialiased; }
 
-  /* ---------- Top bar ---------- */
   .topbar {
-    background: var(--bg-1);
-    border-bottom: 1px solid var(--line);
-    padding: 0 24px;
-    height: 56px;
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    align-items: center;
-    gap: 24px;
+    background: var(--bg-1); border-bottom: 1px solid var(--line);
+    padding: 0 24px; height: 56px;
+    display: grid; grid-template-columns: auto 1fr auto;
+    align-items: center; gap: 24px;
     position: sticky; top: 0; z-index: 100;
   }
-  .brand {
-    display: flex; align-items: center; gap: 12px;
-    font-family: var(--mono);
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-  }
-  .brand .pulse {
-    width: 8px; height: 8px;
-    background: var(--accent);
-    border-radius: 50%;
-    box-shadow: 0 0 12px var(--accent);
-    animation: pulse 2s ease-in-out infinite;
-  }
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50%      { opacity: 0.6; transform: scale(0.85); }
-  }
-  .brand .name { color: var(--ink); }
+  .brand { display: flex; align-items: center; gap: 12px; font-family: var(--mono); font-size: 13px; font-weight: 600; letter-spacing: 0.02em; }
+  .brand .pulse { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 12px var(--accent); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.6;transform:scale(0.85);} }
   .brand .sep { color: var(--ink-dim); }
   .brand .env { color: var(--accent); font-size: 11px; padding: 2px 8px; border: 1px solid var(--accent); border-radius: 2px; }
 
-  .topbar .meta {
-    display: flex;
-    gap: 24px;
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--ink-soft);
-    justify-content: center;
-  }
-  .meta-item {
-    display: flex; align-items: center; gap: 8px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-  }
+  .topbar .meta { display: flex; gap: 24px; font-family: var(--mono); font-size: 11px; color: var(--ink-soft); justify-content: center; }
+  .meta-item { display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.08em; }
   .meta-item .k { color: var(--ink-dim); }
   .meta-item .v { color: var(--ink); }
 
   .topbar .actions { display: flex; gap: 8px; align-items: center; }
-  .btn {
-    font-family: var(--mono);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    padding: 8px 14px;
-    border-radius: 3px;
-    cursor: pointer;
-    transition: all 0.12s ease;
-    border: 1px solid transparent;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    white-space: nowrap;
-  }
-  .btn-primary {
-    background: var(--accent);
-    color: #001a10;
-    font-weight: 600;
-  }
+  .btn { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; padding: 8px 14px; border-radius: 3px; cursor: pointer; transition: all 0.12s ease; border: 1px solid transparent; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .btn-primary { background: var(--accent); color: #001a10; font-weight: 600; }
   .btn-primary:hover { background: #00e88c; box-shadow: 0 0 24px #00ff9c30; }
   .btn-primary:disabled { background: var(--bg-3); color: var(--ink-dim); cursor: wait; box-shadow: none; }
-  .btn-ghost {
-    background: transparent;
-    color: var(--ink-soft);
-    border-color: var(--line-2);
-  }
-  .btn-ghost:hover { background: var(--bg-3); color: var(--ink); border-color: var(--line-2); }
-
-  .btn .ico {
-    width: 12px; height: 12px;
-    display: inline-block;
-    transition: transform 0.6s ease;
-  }
+  .btn-ghost { background: transparent; color: var(--ink-soft); border-color: var(--line-2); }
+  .btn-ghost:hover { background: var(--bg-3); color: var(--ink); }
+  .btn .ico { width: 12px; height: 12px; display: inline-block; transition: transform 0.6s ease; }
   .btn.syncing .ico { animation: spin 1s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* ---------- Container ---------- */
-  .container {
-    max-width: 1600px;
-    margin: 0 auto;
-    padding: 24px;
-  }
+  .container { max-width: 1600px; margin: 0 auto; padding: 24px; }
 
-  /* ---------- Page header ---------- */
-  .page-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    margin-bottom: 24px;
-    gap: 24px;
-  }
-  .page-head h1 {
-    font-family: var(--sans);
-    font-weight: 500;
-    font-size: 22px;
-    margin: 0 0 6px;
-    letter-spacing: -0.01em;
-  }
-  .page-head .crumb {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--ink-dim);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-  }
+  .page-head { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; gap: 24px; flex-wrap: wrap; }
+  .page-head h1 { font-family: var(--sans); font-weight: 500; font-size: 22px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .page-head .crumb { font-family: var(--mono); font-size: 11px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.1em; }
   .page-head .crumb .accent { color: var(--accent); }
+  .page-head .right-stats { display: flex; gap: 32px; font-family: var(--mono); font-size: 11px; }
+  .right-stats .stat .l { color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+  .right-stats .stat .v { color: var(--ink); font-size: 13px; font-weight: 500; }
 
-  .page-head .right-stats {
-    display: flex; gap: 32px;
-    font-family: var(--mono);
-    font-size: 11px;
-  }
-  .right-stats .stat .l {
-    color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.08em;
-    margin-bottom: 4px;
-  }
-  .right-stats .stat .v {
-    color: var(--ink); font-size: 13px; font-weight: 500;
-  }
-
-  /* ---------- Filters bar ---------- */
-  .filters {
-    background: var(--bg-1);
-    border: 1px solid var(--line);
-    border-radius: 4px;
-    padding: 16px;
-    margin-bottom: 24px;
-    display: grid;
-    grid-template-columns: 2fr 1fr 1fr;
-    gap: 16px;
-    align-items: end;
-  }
+  .filters { background: var(--bg-1); border: 1px solid var(--line); border-radius: 4px; padding: 16px; margin-bottom: 24px; display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 16px; align-items: end; }
   @media (max-width: 1000px) { .filters { grid-template-columns: 1fr 1fr; } }
   @media (max-width: 600px)  { .filters { grid-template-columns: 1fr; } }
-
   .f-group { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-  .f-group .f-label {
-    font-family: var(--mono);
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--ink-dim);
-  }
-
+  .f-label { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-dim); }
   .presets { display: flex; flex-wrap: wrap; gap: 4px; }
-  .chip {
-    font-family: var(--mono);
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    padding: 6px 10px;
-    background: var(--bg-2);
-    border: 1px solid var(--line);
-    color: var(--ink-soft);
-    cursor: pointer;
-    border-radius: 2px;
-    transition: all 0.12s ease;
-  }
+  .chip { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; padding: 6px 10px; background: var(--bg-2); border: 1px solid var(--line); color: var(--ink-soft); cursor: pointer; border-radius: 2px; transition: all 0.12s ease; }
   .chip:hover { color: var(--ink); border-color: var(--line-2); }
-  .chip.active {
-    background: var(--accent);
-    color: #001a10;
-    border-color: var(--accent);
-    font-weight: 600;
-  }
-
-  .date-inputs {
-    display: grid;
-    grid-template-columns: 1fr 12px 1fr;
-    gap: 6px;
-    align-items: center;
-    margin-top: 6px;
-  }
-  .date-inputs .dash {
-    color: var(--ink-dim);
-    text-align: center;
-    font-family: var(--mono);
-  }
-  .field {
-    font-family: var(--mono);
-    font-size: 12px;
-    padding: 9px 12px;
-    border: 1px solid var(--line);
-    background: var(--bg-2);
-    color: var(--ink);
-    border-radius: 3px;
-    outline: none;
-    width: 100%;
-    transition: border-color 0.12s;
-    color-scheme: dark;
-  }
+  .chip.active { background: var(--accent); color: #001a10; border-color: var(--accent); font-weight: 600; }
+  .date-inputs { display: grid; grid-template-columns: 1fr 12px 1fr; gap: 6px; align-items: center; margin-top: 6px; }
+  .date-inputs .dash { color: var(--ink-dim); text-align: center; font-family: var(--mono); }
+  .field { font-family: var(--mono); font-size: 12px; padding: 9px 12px; border: 1px solid var(--line); background: var(--bg-2); color: var(--ink); border-radius: 3px; outline: none; width: 100%; transition: border-color 0.12s; color-scheme: dark; }
   .field:focus { border-color: var(--accent); }
   .field:disabled { opacity: 0.45; cursor: not-allowed; }
-
-  select.field {
-    appearance: none;
-    cursor: pointer;
+  select.field { appearance: none; cursor: pointer;
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%238a93a3' fill='none' stroke-width='1.2'/></svg>");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    padding-right: 32px;
-  }
+    background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
 
-  /* ---------- Metric cards row ---------- */
-  .kpi-row {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-    margin-bottom: 24px;
-  }
+  .kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
   @media (max-width: 900px) { .kpi-row { grid-template-columns: 1fr; } }
-
-  .kpi {
-    background: var(--bg-1);
-    border: 1px solid var(--line);
-    border-radius: 4px;
-    padding: 20px 22px;
-    position: relative;
-    overflow: hidden;
-    transition: border-color 0.2s, transform 0.2s;
-  }
+  .kpi { background: var(--bg-1); border: 1px solid var(--line); border-radius: 4px; padding: 20px 22px; position: relative; overflow: hidden; transition: border-color 0.2s; }
   .kpi:hover { border-color: var(--line-2); }
-
-  .kpi::before {
-    content: "";
-    position: absolute; top: 0; left: 0; right: 0;
-    height: 2px;
-    background: var(--accent);
-    opacity: 0.4;
-  }
-  .kpi[data-tone="2"]::before { background: #5cabff; }
+  .kpi::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--accent); opacity: 0.4; }
+  .kpi[data-tone="2"]::before { background: var(--blue); }
   .kpi[data-tone="3"]::before { background: var(--warn); }
-
-  .kpi-head {
-    display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 14px;
-  }
-  .kpi-title {
-    font-family: var(--mono);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--ink-soft);
-  }
-  .kpi-id {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--ink-dim);
-    background: var(--bg-3);
-    padding: 2px 6px;
-    border-radius: 2px;
-    letter-spacing: 0.06em;
-  }
-  .kpi-value {
-    font-family: var(--mono);
-    font-weight: 500;
-    font-size: 44px;
-    line-height: 1;
-    letter-spacing: -0.02em;
-    color: var(--ink);
-    font-variant-numeric: tabular-nums;
-    margin-bottom: 12px;
-  }
-  .kpi-value.loading {
-    color: var(--ink-dim);
-    animation: blink 1.4s ease-in-out infinite;
-  }
-  @keyframes blink {
-    0%, 100% { opacity: 0.4; }
-    50%      { opacity: 0.85; }
-  }
-  .kpi-foot {
-    display: flex; justify-content: space-between;
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--ink-soft);
-    padding-top: 12px;
-    border-top: 1px solid var(--line);
-  }
-  .kpi-foot .badge {
-    color: var(--accent);
-    background: #00ff9c14;
-    padding: 2px 8px;
-    border-radius: 2px;
-    border: 1px solid #00ff9c30;
-    font-weight: 500;
-  }
-  .kpi[data-tone="2"] .kpi-foot .badge { color: #5cabff; background: #5cabff14; border-color: #5cabff30; }
+  .kpi-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .kpi-title { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-soft); }
+  .kpi-id { font-family: var(--mono); font-size: 10px; color: var(--ink-dim); background: var(--bg-3); padding: 2px 6px; border-radius: 2px; letter-spacing: 0.06em; }
+  .kpi-value { font-family: var(--mono); font-weight: 500; font-size: 44px; line-height: 1; letter-spacing: -0.02em; color: var(--ink); font-variant-numeric: tabular-nums; margin-bottom: 12px; }
+  .kpi-value.loading { color: var(--ink-dim); animation: blink 1.4s ease-in-out infinite; }
+  @keyframes blink { 0%,100%{opacity:0.4;} 50%{opacity:0.85;} }
+  .kpi-foot { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11px; color: var(--ink-soft); padding-top: 12px; border-top: 1px solid var(--line); }
+  .kpi-foot .badge { color: var(--accent); background: #00ff9c14; padding: 2px 8px; border-radius: 2px; border: 1px solid #00ff9c30; font-weight: 500; }
+  .kpi[data-tone="2"] .kpi-foot .badge { color: var(--blue); background: #5cabff14; border-color: #5cabff30; }
   .kpi[data-tone="3"] .kpi-foot .badge { color: var(--warn); background: #ffb54714; border-color: #ffb54730; }
 
-  /* ---------- Info grid ---------- */
-  .info-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-  }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   @media (max-width: 800px) { .info-grid { grid-template-columns: 1fr; } }
-
-  .panel {
-    background: var(--bg-1);
-    border: 1px solid var(--line);
-    border-radius: 4px;
-    padding: 18px 20px;
-  }
-  .panel h3 {
-    font-family: var(--mono);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--ink-soft);
-    margin: 0 0 14px;
-    font-weight: 500;
-    display: flex; justify-content: space-between; align-items: center;
-  }
-  .panel h3 .tag {
-    font-size: 9px;
-    color: var(--ink-dim);
-    background: var(--bg-3);
-    padding: 2px 6px;
-    border-radius: 2px;
-  }
-
+  .panel { background: var(--bg-1); border: 1px solid var(--line); border-radius: 4px; padding: 18px 20px; }
+  .panel h3 { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-soft); margin: 0 0 14px; font-weight: 500; display: flex; justify-content: space-between; align-items: center; }
+  .panel h3 .tag { font-size: 9px; color: var(--ink-dim); background: var(--bg-3); padding: 2px 6px; border-radius: 2px; }
   .kv-table { width: 100%; border-collapse: collapse; }
   .kv-table tr td { padding: 7px 0; border-bottom: 1px dashed var(--line); font-family: var(--mono); font-size: 12px; }
   .kv-table tr:last-child td { border-bottom: none; }
   .kv-table td.k { color: var(--ink-soft); width: 50%; }
   .kv-table td.v { color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
   .kv-table td.v .dim { color: var(--ink-dim); }
-  .kv-table td.v .acc { color: var(--accent); }
 
-  /* ---------- Status toast ---------- */
-  #status {
-    position: fixed;
-    bottom: 24px; right: 24px;
-    background: var(--bg-2);
-    color: var(--ink);
-    border: 1px solid var(--line-2);
-    border-left: 3px solid var(--accent);
-    font-family: var(--mono);
-    font-size: 12px;
-    padding: 12px 18px;
-    border-radius: 3px;
-    transform: translateY(150%);
-    transition: transform 0.3s ease;
-    max-width: 360px;
-    z-index: 200;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
-  }
+  #status { position: fixed; bottom: 24px; right: 24px; background: var(--bg-2); color: var(--ink); border: 1px solid var(--line-2); border-left: 3px solid var(--accent); font-family: var(--mono); font-size: 12px; padding: 12px 18px; border-radius: 3px; transform: translateY(150%); transition: transform 0.3s ease; max-width: 360px; z-index: 200; box-shadow: 0 10px 40px rgba(0,0,0,0.4); }
   #status.show { transform: translateY(0); }
   #status.error { border-left-color: var(--danger); }
   #status.warn  { border-left-color: var(--warn); }
 
-  /* ---------- Initial loading overlay ---------- */
-  #boot {
-    position: fixed; inset: 0;
-    background: var(--bg);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 300;
-    flex-direction: column;
-    gap: 16px;
-    transition: opacity 0.3s, visibility 0.3s;
-  }
+  #boot { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 300; flex-direction: column; gap: 18px; transition: opacity 0.3s, visibility 0.3s; }
   #boot.hide { opacity: 0; visibility: hidden; }
-  #boot .ring {
-    width: 32px; height: 32px;
-    border: 2px solid var(--line-2);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-  #boot .label {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--ink-soft);
-    text-transform: uppercase;
-    letter-spacing: 0.16em;
-  }
-  #boot .sub {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--ink-dim);
-  }
+  #boot .ring { width: 32px; height: 32px; border: 2px solid var(--line-2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  #boot .label { font-family: var(--mono); font-size: 12px; color: var(--ink); text-transform: uppercase; letter-spacing: 0.16em; }
+  #boot .sub { font-family: var(--mono); font-size: 11px; color: var(--ink-soft); max-width: 320px; text-align: center; line-height: 1.5; }
+  #boot .timer { font-family: var(--mono); font-size: 10px; color: var(--ink-dim); margin-top: 4px; }
+  #boot .progress-bar { width: 240px; height: 2px; background: var(--bg-3); border-radius: 1px; overflow: hidden; position: relative; }
+  #boot .progress-bar::after { content: ""; position: absolute; top: 0; left: 0; height: 100%; width: 40%; background: var(--accent); border-radius: 1px; animation: progress-slide 1.6s ease-in-out infinite; }
+  @keyframes progress-slide { 0% { left: -40%; } 100% { left: 100%; } }
 
-  /* ---------- Subtle scanline texture for the dashboard feel ---------- */
-  .container::before {
-    content: "";
-    position: fixed; inset: 0;
-    background: repeating-linear-gradient(0deg, rgba(255,255,255,0.01) 0 1px, transparent 1px 3px);
-    pointer-events: none;
-    z-index: 1;
-  }
+  .container::before { content: ""; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, rgba(255,255,255,0.01) 0 1px, transparent 1px 3px); pointer-events: none; z-index: 1; }
 </style>
 </head>
 <body>
@@ -447,13 +131,15 @@
 <div id="boot">
   <div class="ring"></div>
   <div class="label">Loading dataset</div>
+  <div class="progress-bar"></div>
   <div class="sub" id="boot-sub">Fetching from Metabase…</div>
+  <div class="timer" id="boot-timer">0s</div>
 </div>
 
 <div class="topbar">
   <div class="brand">
     <span class="pulse"></span>
-    <span class="name">IMAGE_OPS</span>
+    <span>IMAGE_OPS</span>
     <span class="sep">/</span>
     <span class="env">LIVE</span>
   </div>
@@ -484,11 +170,10 @@
     <div class="right-stats">
       <div class="stat"><div class="l">Matched</div><div class="v" id="hs-matched">—</div></div>
       <div class="stat"><div class="l">Total</div><div class="v" id="hs-total">—</div></div>
-      <div class="stat"><div class="l">Coverage</div><div class="v" id="hs-cov">—</div></div>
+      <div class="stat"><div class="l">Cells</div><div class="v" id="hs-cells">—</div></div>
     </div>
   </div>
 
-  <!-- Filters -->
   <div class="filters">
     <div class="f-group">
       <div class="f-label">Date range · createdDate</div>
@@ -507,56 +192,34 @@
         <input type="date" id="to"   class="field" />
       </div>
     </div>
-
     <div class="f-group">
       <div class="f-label">Enterprise</div>
       <select id="enterprise" class="field"><option value="">All enterprises</option></select>
     </div>
-
     <div class="f-group">
       <div class="f-label">Account type</div>
       <select id="account_type" class="field"><option value="">All account types</option></select>
     </div>
   </div>
 
-  <!-- KPI row -->
   <div class="kpi-row">
     <div class="kpi" data-tone="1">
-      <div class="kpi-head">
-        <div class="kpi-title">Distinct SKUs</div>
-        <div class="kpi-id">KPI_01</div>
-      </div>
+      <div class="kpi-head"><div class="kpi-title">Distinct SKUs</div><div class="kpi-id">KPI_01</div></div>
       <div class="kpi-value loading" id="m-sku">—</div>
-      <div class="kpi-foot">
-        <span>unique sku_id</span>
-        <span class="badge" id="m-sku-extra">—</span>
-      </div>
+      <div class="kpi-foot"><span>unique sku_id</span><span class="badge" id="m-sku-extra">—</span></div>
     </div>
     <div class="kpi" data-tone="2">
-      <div class="kpi-head">
-        <div class="kpi-title">Distinct images</div>
-        <div class="kpi-id">KPI_02</div>
-      </div>
+      <div class="kpi-head"><div class="kpi-title">Distinct images</div><div class="kpi-id">KPI_02</div></div>
       <div class="kpi-value loading" id="m-img">—</div>
-      <div class="kpi-foot">
-        <span>unique image_id</span>
-        <span class="badge" id="m-img-extra">—</span>
-      </div>
+      <div class="kpi-foot"><span>unique image_id</span><span class="badge" id="m-img-extra">—</span></div>
     </div>
     <div class="kpi" data-tone="3">
-      <div class="kpi-head">
-        <div class="kpi-title">Edited images</div>
-        <div class="kpi-id">KPI_03</div>
-      </div>
+      <div class="kpi-head"><div class="kpi-title">Edited images</div><div class="kpi-id">KPI_03</div></div>
       <div class="kpi-value loading" id="m-edit">—</div>
-      <div class="kpi-foot">
-        <span>image_action ≠ null</span>
-        <span class="badge" id="m-edit-extra">—</span>
-      </div>
+      <div class="kpi-foot"><span>image_action ≠ null</span><span class="badge" id="m-edit-extra">—</span></div>
     </div>
   </div>
 
-  <!-- Info panels -->
   <div class="info-grid">
     <div class="panel">
       <h3>Active filters <span class="tag">FILTER_STATE</span></h3>
@@ -583,32 +246,29 @@
 <div id="status"></div>
 
 <script>
-  // ---------- Config ----------
-  const API = '/api/metrics';
-  const REFRESH_MS = 60 * 60 * 1000;          // 1h auto-refresh
-  const LS_KEY = 'imgops:payload:v1';
-  const LS_FILTERS = 'imgops:filters:v1';
-  const STALE_AFTER_MS = 60 * 60 * 1000;      // older than this and we silently refetch
+  const API = '/api/data';   // matches your filename: api/data.js
+  const REFRESH_MS = 60 * 60 * 1000;
+  const LS_KEY = 'imgops:cube:v2';
+  const LS_FILTERS = 'imgops:filters:v2';
+  const STALE_AFTER_MS = 60 * 60 * 1000;
 
-  let payload = null;       // { columns, rows, filterOptions, fetchedAt, ... }
+  let payload = null;
   let refreshTimer = null;
   let countdownTimer = null;
+  let bootTimer = null;
   let nextRefreshAt = null;
 
-  // Slim row schema (matches API): [image_id, sku_id, date, hasAction(0|1), enterprise, account_type]
-  const COL = { IMG: 0, SKU: 1, DATE: 2, ACTION: 3, ENT: 4, ACC: 5 };
+  // Cube cell layout: [date, ent, acc, rows, skuCount, imgCount, editedRows, editedImgCount]
+  const C = { DATE: 0, ENT: 1, ACC: 2, ROWS: 3, SKU: 4, IMG: 5, EDIT: 6, EDIT_IMG: 7 };
 
-  // ---------- DOM ----------
   const el = id => document.getElementById(id);
-  const $boot = el('boot');
-  const $bootSub = el('boot-sub');
+  const $boot = el('boot'), $bootSub = el('boot-sub'), $bootTimer = el('boot-timer');
   const fromInput = el('from'), toInput = el('to');
   const entSel = el('enterprise'), accSel = el('account_type');
   const applyBtn = el('apply-btn'), syncBtn = el('sync-btn');
   const lastSyncEl = el('last-sync'), nextRefreshEl = el('next-refresh');
   const status = el('status');
 
-  // ---------- Helpers ----------
   const fmt = n => (n === null || n === undefined) ? '—' : new Intl.NumberFormat('en-US').format(n);
   const pad = n => String(n).padStart(2, '0');
   const toISO = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
@@ -620,16 +280,13 @@
     if (kind === 'warn')  status.classList.add('warn');
     status.classList.add('show');
     clearTimeout(showStatus._t);
-    showStatus._t = setTimeout(() => status.classList.remove('show'), 3500);
+    showStatus._t = setTimeout(() => status.classList.remove('show'), 4500);
   }
 
-  // ---------- Date presets ----------
   function presetRange(name) {
-    const today = new Date();
-    today.setHours(0,0,0,0);
+    const today = new Date(); today.setHours(0,0,0,0);
     const d = new Date(today);
     let from, to;
-
     if (name === 'this_week') {
       const dow = (d.getDay() + 6) % 7;
       from = new Date(d); from.setDate(d.getDate() - dow);
@@ -645,62 +302,45 @@
       from = new Date(d.getFullYear(), d.getMonth() - 1, 1);
       to = new Date(d.getFullYear(), d.getMonth(), 0);
     } else if (name === 'last_3_weeks') {
-      to = new Date(d);
-      from = new Date(d); from.setDate(d.getDate() - 21 + 1);
+      to = new Date(d); from = new Date(d); from.setDate(d.getDate() - 21 + 1);
     } else if (name === 'last_3_months') {
-      to = new Date(d);
-      from = new Date(d.getFullYear(), d.getMonth() - 3, d.getDate() + 1);
-    } else {
-      return null;
-    }
+      to = new Date(d); from = new Date(d.getFullYear(), d.getMonth() - 3, d.getDate() + 1);
+    } else { return null; }
     return { from: toISO(from), to: toISO(to) };
   }
 
   function setPreset(name) {
-    document.querySelectorAll('.chip').forEach(c =>
-      c.classList.toggle('active', c.dataset.preset === name));
-    if (name === 'custom') {
-      fromInput.disabled = false; toInput.disabled = false;
-      return;
-    }
+    document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.preset === name));
+    if (name === 'custom') { fromInput.disabled = false; toInput.disabled = false; return; }
     const r = presetRange(name);
-    if (r) {
-      fromInput.value = r.from; toInput.value = r.to;
-      fromInput.disabled = true; toInput.disabled = true;
-    }
+    if (r) { fromInput.value = r.from; toInput.value = r.to; fromInput.disabled = true; toInput.disabled = true; }
   }
 
-  // ---------- Filter persistence ----------
   function persistFilters() {
     try {
-      const f = {
+      localStorage.setItem(LS_FILTERS, JSON.stringify({
         from: fromInput.value, to: toInput.value,
         enterprise: entSel.value, account_type: accSel.value,
         preset: document.querySelector('.chip.active')?.dataset.preset || 'custom',
-      };
-      localStorage.setItem(LS_FILTERS, JSON.stringify(f));
-    } catch (e) { /* localStorage might be full or disabled */ }
+      }));
+    } catch (e) {}
   }
   function restoreFilters() {
     try {
       const raw = localStorage.getItem(LS_FILTERS);
-      if (!raw) return false;
+      if (!raw) return;
       const f = JSON.parse(raw);
-      if (f.preset && f.preset !== 'custom') {
-        setPreset(f.preset);
-      } else {
+      if (f.preset && f.preset !== 'custom') setPreset(f.preset);
+      else {
         setPreset('custom');
         if (f.from) fromInput.value = f.from;
         if (f.to)   toInput.value = f.to;
       }
-      // Selects are populated after data loads — defer their value setting
       restoreFilters._pendingEnt = f.enterprise || '';
       restoreFilters._pendingAcc = f.account_type || '';
-      return true;
-    } catch (e) { return false; }
+    } catch (e) {}
   }
 
-  // ---------- Filter option population ----------
   function fillSelect(sel, values) {
     const keep = sel.value || (sel === entSel ? restoreFilters._pendingEnt : restoreFilters._pendingAcc) || '';
     sel.innerHTML = `<option value="">All ${sel === entSel ? 'enterprises' : 'account types'}</option>`;
@@ -712,7 +352,7 @@
     if (keep && values.includes(keep)) sel.value = keep;
   }
 
-  // ---------- Client-side filtering & aggregation ----------
+  // ---------- Cube aggregation: sum matching cells ----------
   function compute() {
     if (!payload) return null;
     const from = fromInput.value || null;
@@ -720,78 +360,54 @@
     const ent  = entSel.value    || null;
     const acc  = accSel.value    || null;
 
-    const rows = payload.rows;
-    const distinctSku = new Set();
-    const distinctImg = new Set();
-    let editedCount = 0;
-    const editedImgIds = new Set();
-    let matched = 0;
+    const cells = payload.cells;
+    let rows = 0, sku = 0, img = 0, edited = 0, editedImg = 0;
 
-    // Hot loop: kept tight, no closures, string compares only
-    for (let i = 0; i < rows.length; i++) {
-      const r = rows[i];
-      const d = r[COL.DATE];
-      if ((from || to) && !d) continue;
+    for (let i = 0; i < cells.length; i++) {
+      const c = cells[i];
+      const d = c[C.DATE];
       if (from && d < from) continue;
       if (to && d > to) continue;
-      if (ent && r[COL.ENT] !== ent) continue;
-      if (acc && r[COL.ACC] !== acc) continue;
+      if (ent && c[C.ENT] !== ent) continue;
+      if (acc && c[C.ACC] !== acc) continue;
 
-      matched++;
-      const sku = r[COL.SKU];
-      if (sku) distinctSku.add(sku);
-      const img = r[COL.IMG];
-      if (img) distinctImg.add(img);
-      if (r[COL.ACTION] === 1) {
-        editedCount++;
-        if (img) editedImgIds.add(img);
-      }
+      rows      += c[C.ROWS];
+      sku       += c[C.SKU];
+      img       += c[C.IMG];
+      edited    += c[C.EDIT];
+      editedImg += c[C.EDIT_IMG];
     }
-    return {
-      matched,
-      total: rows.length,
-      distinctSku: distinctSku.size,
-      distinctImg: distinctImg.size,
-      editedCount,
-      distinctEditedImg: editedImgIds.size,
-    };
+    return { matched: rows, total: payload.totalRows, sku, img, edited, editedImg };
   }
 
   function render() {
     if (!payload) return;
     const t0 = performance.now();
     const r = compute();
-    const elapsed = (performance.now() - t0).toFixed(1);
+    const ms = (performance.now() - t0).toFixed(1);
 
-    // KPI values
-    el('m-sku').textContent = fmt(r.distinctSku);
+    el('m-sku').textContent = fmt(r.sku);
     el('m-sku').classList.remove('loading');
-    el('m-img').textContent = fmt(r.distinctImg);
+    el('m-img').textContent = fmt(r.img);
     el('m-img').classList.remove('loading');
-    el('m-edit').textContent = fmt(r.editedCount);
+    el('m-edit').textContent = fmt(r.edited);
     el('m-edit').classList.remove('loading');
 
-    // KPI badges
-    const imgPerSku = r.distinctSku > 0 ? (r.distinctImg / r.distinctSku).toFixed(1) : '0';
-    el('m-sku-extra').textContent  = `${imgPerSku} img/sku`;
+    el('m-sku-extra').textContent  = r.sku > 0 ? `${(r.img / r.sku).toFixed(1)} img/sku` : '—';
     el('m-img-extra').textContent  = `${fmt(r.matched)} rows`;
-    const editRate = r.distinctImg > 0 ? Math.round((r.distinctEditedImg / r.distinctImg) * 100) : 0;
-    el('m-edit-extra').textContent = `${editRate}% rate`;
+    el('m-edit-extra').textContent = r.img > 0 ? `${Math.round((r.editedImg / r.img) * 100)}% rate` : '0%';
 
-    // Header right-side
     el('hs-matched').textContent = fmt(r.matched);
     el('hs-total').textContent   = fmt(r.total);
-    const cov = r.total > 0 ? Math.round((r.matched / r.total) * 100) : 0;
-    el('hs-cov').textContent = `${cov}%`;
+    el('hs-cells').textContent   = fmt(payload.cellCount);
 
-    // Filter state panel
     el('d-from').textContent = fromInput.value || '—';
     el('d-to').textContent   = toInput.value   || '—';
     el('d-ent').textContent  = entSel.value    || 'All';
     el('d-acc').textContent  = accSel.value    || 'All';
 
     persistFilters();
-    console.debug(`Recomputed in ${elapsed}ms over ${r.total} rows`);
+    console.debug(`Aggregated ${payload.cellCount} cells in ${ms}ms`);
   }
 
   function renderMeta() {
@@ -804,67 +420,71 @@
     el('d-version').textContent = `v${payload.version}`;
   }
 
-  // ---------- Load / cache ----------
   function loadFromCache() {
     try {
       const raw = localStorage.getItem(LS_KEY);
       if (!raw) return null;
       const p = JSON.parse(raw);
-      if (!p || !p.rows) return null;
+      if (!p || !p.cells) return null;
       return p;
     } catch (e) { return null; }
   }
   function saveToCache(p) {
-    try {
-      localStorage.setItem(LS_KEY, JSON.stringify(p));
-    } catch (e) {
-      // localStorage may be full — clear it and retry once
-      try {
-        localStorage.removeItem(LS_KEY);
-        localStorage.setItem(LS_KEY, JSON.stringify(p));
-      } catch (e2) {
-        showStatus('Cache full — keeping data in memory only.', 'warn');
-      }
+    try { localStorage.setItem(LS_KEY, JSON.stringify(p)); }
+    catch (e) {
+      try { localStorage.removeItem(LS_KEY); localStorage.setItem(LS_KEY, JSON.stringify(p)); }
+      catch (e2) { showStatus('Cache full — data held in memory only.', 'warn'); }
     }
   }
 
+  function startBootTimer() {
+    const t0 = Date.now();
+    bootTimer = setInterval(() => {
+      const s = ((Date.now() - t0) / 1000).toFixed(0);
+      $bootTimer.textContent = `${s}s`;
+      if (s > 20) $bootSub.textContent = 'Still loading — large datasets can take up to 60s on first sync.';
+      else if (s > 8) $bootSub.textContent = 'Parsing and aggregating the dataset…';
+    }, 1000);
+  }
+  function stopBootTimer() {
+    if (bootTimer) clearInterval(bootTimer);
+    bootTimer = null;
+  }
+
   async function fetchFromServer({ force = false } = {}) {
-    syncBtn.disabled = true;
+    syncBtn.disabled = true; applyBtn.disabled = true;
     syncBtn.classList.add('syncing');
-    applyBtn.disabled = true;
     const t0 = performance.now();
 
     try {
-      const url = force ? `${API}?refresh=1` : API;
+      const url = force ? `${API}?refresh=1&t=${Date.now()}` : API;
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || 'Unknown error');
 
-      data._loadedFrom = data.fromCache ? 'server_cache' : 'network';
+      data._loadedFrom = data.fromMemoryCache ? 'server_memory_cache' : 'network';
       payload = data;
       saveToCache(payload);
 
       fillSelect(entSel, payload.filterOptions.enterprise_name || []);
       fillSelect(accSel, payload.filterOptions.account_type    || []);
 
-      renderMeta();
-      render();
+      renderMeta(); render();
       scheduleAutoRefresh();
-      const elapsed = ((performance.now() - t0) / 1000).toFixed(1);
-      showStatus(`Loaded ${fmt(payload.totalRows)} rows in ${elapsed}s`);
+      const sec = ((performance.now() - t0) / 1000).toFixed(1);
+      showStatus(`Loaded ${fmt(payload.totalRows)} rows · ${fmt(payload.cellCount)} cells in ${sec}s`);
     } catch (err) {
       showStatus(`Sync failed: ${err.message}`, 'error');
       console.error(err);
     } finally {
-      syncBtn.disabled = false;
+      syncBtn.disabled = false; applyBtn.disabled = false;
       syncBtn.classList.remove('syncing');
-      applyBtn.disabled = false;
+      stopBootTimer();
       $boot.classList.add('hide');
     }
   }
 
-  // ---------- Auto-refresh ----------
   function scheduleAutoRefresh() {
     if (refreshTimer) clearTimeout(refreshTimer);
     nextRefreshAt = Date.now() + REFRESH_MS;
@@ -884,48 +504,39 @@
     countdownTimer = setInterval(update, 1000);
   }
 
-  // ---------- Wire up ----------
-  document.querySelectorAll('.chip').forEach(c => {
-    c.addEventListener('click', () => { setPreset(c.dataset.preset); render(); });
-  });
-  [fromInput, toInput].forEach(inp => {
-    inp.addEventListener('change', () => { setPreset('custom'); render(); });
-  });
+  document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { setPreset(c.dataset.preset); render(); }));
+  [fromInput, toInput].forEach(inp => inp.addEventListener('change', () => { setPreset('custom'); render(); }));
   entSel.addEventListener('change', render);
   accSel.addEventListener('change', render);
   applyBtn.addEventListener('click', render);
-  syncBtn.addEventListener('click', () => fetchFromServer({ force: true }));
+  syncBtn.addEventListener('click', () => {
+    $boot.classList.remove('hide');
+    $bootSub.textContent = 'Forcing a fresh fetch from Metabase…';
+    startBootTimer();
+    fetchFromServer({ force: true });
+  });
 
-  // Default preset before restoring saved filters
   setPreset('last_3_months');
   restoreFilters();
 
-  // ---------- Boot sequence ----------
-  // Step 1: try localStorage. If present, render immediately.
-  // Step 2: in the background, if stale (>1h), silently refresh from server.
-  // Step 3: schedule the hourly auto-refresh.
   (async function boot() {
     const cached = loadFromCache();
-    const now = Date.now();
-
     if (cached) {
       cached._loadedFrom = 'browser_cache';
       payload = cached;
       fillSelect(entSel, payload.filterOptions.enterprise_name || []);
       fillSelect(accSel, payload.filterOptions.account_type    || []);
-      renderMeta();
-      render();
+      renderMeta(); render();
       $boot.classList.add('hide');
       scheduleAutoRefresh();
 
-      // Silently refresh if stale
       const fetchedAt = new Date(payload.fetchedAt).getTime();
-      if (isNaN(fetchedAt) || (now - fetchedAt) > STALE_AFTER_MS) {
+      if (isNaN(fetchedAt) || (Date.now() - fetchedAt) > STALE_AFTER_MS) {
         showStatus('Cache is stale — refreshing in background…', 'warn');
-        fetchFromServer({ force: false }); // no await — background
+        fetchFromServer({ force: false });
       }
     } else {
-      $bootSub.textContent = 'First load — this may take up to 30s';
+      startBootTimer();
       await fetchFromServer({ force: false });
     }
   })();
