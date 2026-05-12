@@ -1,8 +1,6 @@
 {
-  "functions": {
-    "api/metrics.js": {
-      "maxDuration": 60,
-      "memory": 1024
-    }
-  }
+  "name": "spyne-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "engines": { "node": ">=18" }
 }
