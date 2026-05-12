@@ -558,25 +558,41 @@
     "image_action", "enterprise_name", "account_type"
   ];
 
+  let loadProgressTimer = null;
+
+  function startLoadProgress() {
+    stopLoadProgress();
+    const t0 = Date.now();
+    const tick = () => {
+      const sec = Math.round((Date.now() - t0) / 1000);
+      showInfo(`Loading from Metabase… ${sec}s elapsed. Large CSV exports can take up to a minute on first load.`);
+    };
+    tick();
+    loadProgressTimer = setInterval(tick, 1000);
+  }
+  function stopLoadProgress() {
+    if (loadProgressTimer) { clearInterval(loadProgressTimer); loadProgressTimer = null; }
+  }
+
   async function fetchData(force = false) {
     try {
       setSyncing(true);
+      // Show a live progress message — the first cold-start fetch can take ~30-60s.
+      // (Don't show it if we already have data; the spinner on the button is enough.)
+      const hadDataBefore = state.records.length > 0;
+      if (!hadDataBefore) startLoadProgress();
+
       const fieldsQS = "fields=" + encodeURIComponent(FIELDS.join(","));
       const url = force
         ? `/api/data?refresh=1&${fieldsQS}`
         : `/api/data?${fieldsQS}`;
       const res = await fetch(url); // edge handles caching
       const json = await res.json();
-      if (!json.ok) throw new Error(json.error || "Unknown error");
+      stopLoadProgress();
 
-      // Warm-up case: API replied OK but data isn't ready yet (cold-start Metabase fetch in flight).
-      // Show a friendly message and auto-retry in ~8s.
-      if (json.warmingUp && (!json.records || json.records.length === 0)) {
-        showInfo("Warming up — first load from Metabase can take ~30s. Retrying automatically…");
-        $("#cachePill").textContent = "warming up";
-        $("#cachePill").classList.add("alert");
-        setTimeout(() => fetchData(false), 8000);
-        return;
+      if (!json.ok) {
+        // Server returned a friendly error message; show it and let the user retry via Sync.
+        throw new Error(json.error || `HTTP ${res.status}`);
       }
 
       // Pre-parse createdDate ONCE for fast filtering.
@@ -615,7 +631,8 @@
 
       nextRefreshAt = Date.now() + REFRESH_MS;
     } catch (err) {
-      showError("Couldn't load data: " + err.message);
+      stopLoadProgress();
+      showError("Couldn't load data: " + err.message + " — click Sync to retry.");
     } finally {
       setSyncing(false);
     }
