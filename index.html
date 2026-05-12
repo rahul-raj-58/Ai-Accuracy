@@ -552,10 +552,11 @@
   }
 
   // ---------------- Fetch ----------------
-  // Only ask for the columns we actually render — cuts payload significantly.
+  // Aggregated columns from the Metabase question.
   const FIELDS = [
-    "b.image_id", "sku_id", "createdDate",
-    "image_action", "enterprise_name", "account_type"
+    "createdDate", "enterprise_name", "account_type",
+    "unique_images", "unique_skus", "edited_images",
+    "sku_ids", "total_rows"
   ];
 
   let loadProgressTimer = null;
@@ -851,37 +852,90 @@
       return true;
     });
 
-    const uniqEnt  = new Set();
-    const uniqImg  = new Set();
-    const uniqSku  = new Set();
-    const uniqEdit = new Set();
+    // ---- KPI computation on AGGREGATED rows ----
+    // Each row is one (date, enterprise, account_type) bucket containing:
+    //   unique_images : exact-count of image_ids in this bucket (image_id is globally unique → safe to sum)
+    //   unique_skus   : exact-count of sku_ids in this bucket (sku_ids span buckets → NOT safe to sum)
+    //   edited_images : exact-count of edited image_ids in this bucket (safe to sum, same reason)
+    //   sku_ids       : array of distinct sku_id values in this bucket (used to compute true uniques)
+    //   total_rows    : raw row count, for the meta line only
+
+    let totalImages = 0;
+    let totalEdited = 0;
+    let totalRowsFiltered = 0;
+    const uniqEnt = new Set();
+    const skuUnion = new Set();
 
     for (const r of filtered) {
       const ent = (r.enterprise_name || "").trim();
       if (ent) uniqEnt.add(ent);
 
-      const img = (r["b.image_id"] || r.image_id || "").trim();
-      if (img) uniqImg.add(img);
+      totalImages += toInt(r.unique_images);
+      totalEdited += toInt(r.edited_images);
+      totalRowsFiltered += toInt(r.total_rows);
 
-      const sku = (r.sku_id || "").trim();
-      if (sku) uniqSku.add(sku);
-
-      const action = (r.image_action || "").trim();
-      const isNull = !action || action.toLowerCase() === "null";
-      if (!isNull && img) uniqEdit.add(img);
+      // Union the per-bucket sku arrays for an exact distinct count.
+      const skuField = r.sku_ids;
+      if (skuField) {
+        const list = parseSkuArray(skuField);
+        for (const s of list) if (s) skuUnion.add(s);
+      }
     }
 
-    setKpi("kEnt",  uniqEnt.size,  `from ${fmt(filtered.length)} rows`);
-    setKpi("kImg",  uniqImg.size,  `from ${fmt(filtered.length)} rows`);
-    setKpi("kSku",  uniqSku.size,  `from ${fmt(filtered.length)} rows`);
-    const editPct = uniqImg.size > 0 ? ((uniqEdit.size / uniqImg.size) * 100).toFixed(1) : "0.0";
-    setKpi("kEdit", uniqEdit.size, `${editPct}% of unique images`);
+    setKpi("kEnt",  uniqEnt.size,  `across ${fmt(filtered.length)} buckets`);
+    setKpi("kImg",  totalImages,   `from ${fmt(totalRowsFiltered)} raw rows`);
+    setKpi("kSku",  skuUnion.size, `unique across all buckets`);
+    const editPct = totalImages > 0 ? ((totalEdited / totalImages) * 100).toFixed(1) : "0.0";
+    setKpi("kEdit", totalEdited, `${editPct}% of unique images`);
 
     // Meta line
-    const totalRows = state.records.length;
-    $("#filteredPill").textContent = filtered.length === totalRows
-      ? `Showing all ${fmt(totalRows)} rows`
-      : `Showing ${fmt(filtered.length)} of ${fmt(totalRows)} rows`;
+    const totalBuckets = state.records.length;
+    $("#filteredPill").textContent = filtered.length === totalBuckets
+      ? `Showing all ${fmt(totalBuckets)} buckets`
+      : `Showing ${fmt(filtered.length)} of ${fmt(totalBuckets)} buckets`;
+  }
+
+  function toInt(v) {
+    if (v === null || v === undefined || v === "") return 0;
+    const n = typeof v === "number" ? v : parseInt(v, 10);
+    return isNaN(n) ? 0 : n;
+  }
+
+  // Metabase emits arrays as either JSON strings ("['a','b']") or already-parsed arrays
+  // depending on the export format. Handle both.
+  function parseSkuArray(v) {
+    if (Array.isArray(v)) return v;
+    if (typeof v !== "string") return [];
+    const s = v.trim();
+    if (!s) return [];
+    // Try JSON first
+    try {
+      const parsed = JSON.parse(s);
+      if (Array.isArray(parsed)) return parsed.map(String);
+    } catch (_) { /* fall through */ }
+    // ClickHouse array literal: ['a','b','c']
+    if (s.startsWith("[") && s.endsWith("]")) {
+      const inner = s.slice(1, -1);
+      if (!inner.trim()) return [];
+      // Split on commas not inside quotes — simple state machine
+      const out = [];
+      let cur = "", inQ = false, qch = "";
+      for (let i = 0; i < inner.length; i++) {
+        const c = inner[i];
+        if (inQ) {
+          if (c === "\\" && i + 1 < inner.length) { cur += inner[i + 1]; i++; continue; }
+          if (c === qch) { inQ = false; continue; }
+          cur += c;
+        } else {
+          if (c === "'" || c === '"') { inQ = true; qch = c; continue; }
+          if (c === ",") { out.push(cur.trim()); cur = ""; continue; }
+          cur += c;
+        }
+      }
+      if (cur.trim() || out.length) out.push(cur.trim());
+      return out.filter(Boolean);
+    }
+    return [];
   }
 
   function setKpi(id, value, sub) {
