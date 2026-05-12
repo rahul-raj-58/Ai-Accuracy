@@ -3,544 +3,828 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>IMAGE_OPS · Dashboard</title>
+<title>Spyne · Image Operations Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500;600&family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <style>
   :root {
-    --bg: #0a0b0d; --bg-1: #101216; --bg-2: #161a20; --bg-3: #1d222a;
-    --line: #232932; --line-2: #2e3540;
-    --ink: #e8ecf2; --ink-soft: #8a93a3; --ink-dim: #555c6a;
-    --accent: #00ff9c; --accent-2: #00c47a;
-    --warn: #ffb547; --danger: #ff4d6d; --blue: #5cabff;
-    --sans: 'Geist', system-ui, -apple-system, sans-serif;
-    --mono: 'JetBrains Mono', 'Menlo', ui-monospace, monospace;
+    --bg: #f5f3ee;
+    --paper: #ffffff;
+    --ink: #16140f;
+    --ink-soft: #4a463c;
+    --ink-faint: #8a8475;
+    --rule: #d9d4c5;
+    --accent: #ff4d1f;
+    --accent-soft: #ffe9e1;
+    --good: #1f7a4d;
+    --warn: #a35400;
+    --shadow: 0 1px 0 rgba(22,20,15,.04), 0 8px 24px -12px rgba(22,20,15,.12);
   }
+
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
-  body { font-family: var(--sans); background: var(--bg); color: var(--ink); min-height: 100vh; -webkit-font-smoothing: antialiased; }
-
-  .topbar {
-    background: var(--bg-1); border-bottom: 1px solid var(--line);
-    padding: 0 24px; height: 56px;
-    display: grid; grid-template-columns: auto 1fr auto;
-    align-items: center; gap: 24px;
-    position: sticky; top: 0; z-index: 100;
+  body {
+    font-family: "Inter Tight", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
   }
-  .brand { display: flex; align-items: center; gap: 12px; font-family: var(--mono); font-size: 13px; font-weight: 600; letter-spacing: 0.02em; }
-  .brand .pulse { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 12px var(--accent); animation: pulse 2s ease-in-out infinite; }
-  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.6;transform:scale(0.85);} }
-  .brand .sep { color: var(--ink-dim); }
-  .brand .env { color: var(--accent); font-size: 11px; padding: 2px 8px; border: 1px solid var(--accent); border-radius: 2px; }
 
-  .topbar .meta { display: flex; gap: 24px; font-family: var(--mono); font-size: 11px; color: var(--ink-soft); justify-content: center; }
-  .meta-item { display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.08em; }
-  .meta-item .k { color: var(--ink-dim); }
-  .meta-item .v { color: var(--ink); }
+  /* ---------- Layout ---------- */
+  .shell {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 32px 40px 80px;
+  }
 
-  .topbar .actions { display: flex; gap: 8px; align-items: center; }
-  .btn { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; padding: 8px 14px; border-radius: 3px; cursor: pointer; transition: all 0.12s ease; border: 1px solid transparent; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
-  .btn-primary { background: var(--accent); color: #001a10; font-weight: 600; }
-  .btn-primary:hover { background: #00e88c; box-shadow: 0 0 24px #00ff9c30; }
-  .btn-primary:disabled { background: var(--bg-3); color: var(--ink-dim); cursor: wait; box-shadow: none; }
-  .btn-ghost { background: transparent; color: var(--ink-soft); border-color: var(--line-2); }
-  .btn-ghost:hover { background: var(--bg-3); color: var(--ink); }
-  .btn .ico { width: 12px; height: 12px; display: inline-block; transition: transform 0.6s ease; }
-  .btn.syncing .ico { animation: spin 1s linear infinite; }
+  /* ---------- Header ---------- */
+  header.top {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 24px;
+    margin-bottom: 32px;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+  .brand {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .brand .eyebrow {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .brand h1 {
+    font-family: "Fraunces", serif;
+    font-weight: 500;
+    font-size: 38px;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin: 0;
+  }
+  .brand h1 em {
+    font-style: italic;
+    color: var(--accent);
+    font-weight: 400;
+  }
+
+  .status-cluster {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .last-updated {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    color: var(--ink-faint);
+    text-align: right;
+    line-height: 1.5;
+  }
+  .last-updated .val { color: var(--ink); font-weight: 500; }
+
+  .timer-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    padding: 7px 14px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .timer-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--good);
+    box-shadow: 0 0 0 0 rgba(31,122,77,.5);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(31,122,77,.45); }
+    70%  { box-shadow: 0 0 0 8px rgba(31,122,77,0); }
+    100% { box-shadow: 0 0 0 0 rgba(31,122,77,0); }
+  }
+  .timer-dot.syncing { background: var(--accent); animation: pulse-accent 1s infinite; }
+  @keyframes pulse-accent {
+    0%   { box-shadow: 0 0 0 0 rgba(255,77,31,.5); }
+    70%  { box-shadow: 0 0 0 10px rgba(255,77,31,0); }
+    100% { box-shadow: 0 0 0 0 rgba(255,77,31,0); }
+  }
+
+  button.sync-btn {
+    appearance: none;
+    border: none;
+    background: var(--ink);
+    color: var(--bg);
+    font-family: "Inter Tight", sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    padding: 11px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform .12s ease, background .12s ease;
+  }
+  button.sync-btn:hover:not(:disabled) { background: var(--accent); transform: translateY(-1px); }
+  button.sync-btn:disabled { opacity: 0.55; cursor: wait; }
+  button.sync-btn svg { width: 14px; height: 14px; }
+  button.sync-btn.is-syncing svg { animation: spin .9s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  .container { max-width: 1600px; margin: 0 auto; padding: 24px; }
+  /* ---------- Filters bar ---------- */
+  .filters {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 16px;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 28px;
+    box-shadow: var(--shadow);
+  }
+  .filter-group { display: flex; flex-direction: column; gap: 8px; }
+  .filter-group label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .field {
+    border: 1px solid var(--rule);
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-family: "Inter Tight", sans-serif;
+    font-size: 13px;
+    color: var(--ink);
+    outline: none;
+    width: 100%;
+    transition: border-color .12s, background .12s;
+  }
+  .field:focus { border-color: var(--ink); background: var(--paper); }
 
-  .page-head { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; gap: 24px; flex-wrap: wrap; }
-  .page-head h1 { font-family: var(--sans); font-weight: 500; font-size: 22px; margin: 0 0 6px; letter-spacing: -0.01em; }
-  .page-head .crumb { font-family: var(--mono); font-size: 11px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.1em; }
-  .page-head .crumb .accent { color: var(--accent); }
-  .page-head .right-stats { display: flex; gap: 32px; font-family: var(--mono); font-size: 11px; }
-  .right-stats .stat .l { color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
-  .right-stats .stat .v { color: var(--ink); font-size: 13px; font-weight: 500; }
+  .col-date    { grid-column: span 3; }
+  .col-from    { grid-column: span 2; }
+  .col-to      { grid-column: span 2; }
+  .col-ent     { grid-column: span 3; }
+  .col-acct    { grid-column: span 2; }
 
-  .filters { background: var(--bg-1); border: 1px solid var(--line); border-radius: 4px; padding: 16px; margin-bottom: 24px; display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 16px; align-items: end; }
-  @media (max-width: 1000px) { .filters { grid-template-columns: 1fr 1fr; } }
-  @media (max-width: 600px)  { .filters { grid-template-columns: 1fr; } }
-  .f-group { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-  .f-label { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-dim); }
-  .presets { display: flex; flex-wrap: wrap; gap: 4px; }
-  .chip { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; padding: 6px 10px; background: var(--bg-2); border: 1px solid var(--line); color: var(--ink-soft); cursor: pointer; border-radius: 2px; transition: all 0.12s ease; }
-  .chip:hover { color: var(--ink); border-color: var(--line-2); }
-  .chip.active { background: var(--accent); color: #001a10; border-color: var(--accent); font-weight: 600; }
-  .date-inputs { display: grid; grid-template-columns: 1fr 12px 1fr; gap: 6px; align-items: center; margin-top: 6px; }
-  .date-inputs .dash { color: var(--ink-dim); text-align: center; font-family: var(--mono); }
-  .field { font-family: var(--mono); font-size: 12px; padding: 9px 12px; border: 1px solid var(--line); background: var(--bg-2); color: var(--ink); border-radius: 3px; outline: none; width: 100%; transition: border-color 0.12s; color-scheme: dark; }
-  .field:focus { border-color: var(--accent); }
-  .field:disabled { opacity: 0.45; cursor: not-allowed; }
-  select.field { appearance: none; cursor: pointer;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%238a93a3' fill='none' stroke-width='1.2'/></svg>");
-    background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+  /* Custom multi-select */
+  .multi {
+    position: relative;
+    user-select: none;
+  }
+  .multi-trigger {
+    border: 1px solid var(--rule);
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    transition: border-color .12s, background .12s;
+  }
+  .multi-trigger:hover { border-color: var(--ink-soft); }
+  .multi.open .multi-trigger { border-color: var(--ink); background: var(--paper); }
+  .multi-trigger .caret { font-size: 10px; color: var(--ink-faint); }
+  .multi-panel {
+    position: absolute;
+    top: calc(100% + 6px); left: 0; right: 0;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    box-shadow: 0 12px 32px -8px rgba(22,20,15,.18);
+    z-index: 50;
+    max-height: 320px;
+    display: none;
+    flex-direction: column;
+  }
+  .multi.open .multi-panel { display: flex; }
+  .multi-search {
+    border: none;
+    border-bottom: 1px solid var(--rule);
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+    background: transparent;
+  }
+  .multi-actions {
+    display: flex; justify-content: space-between;
+    border-bottom: 1px solid var(--rule);
+    padding: 6px 10px;
+  }
+  .multi-actions button {
+    background: none; border: none; cursor: pointer;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    padding: 4px 6px;
+  }
+  .multi-actions button:hover { color: var(--accent); }
+  .multi-list { overflow-y: auto; padding: 4px 0; }
+  .multi-opt {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 12px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .multi-opt:hover { background: var(--bg); }
+  .multi-opt input { accent-color: var(--accent); }
+  .multi-opt .count { margin-left: auto; color: var(--ink-faint); font-family: "JetBrains Mono", monospace; font-size: 11px; }
 
-  .kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
-  @media (max-width: 900px) { .kpi-row { grid-template-columns: 1fr; } }
-  .kpi { background: var(--bg-1); border: 1px solid var(--line); border-radius: 4px; padding: 20px 22px; position: relative; overflow: hidden; transition: border-color 0.2s; }
-  .kpi:hover { border-color: var(--line-2); }
-  .kpi::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--accent); opacity: 0.4; }
-  .kpi[data-tone="2"]::before { background: var(--blue); }
-  .kpi[data-tone="3"]::before { background: var(--warn); }
-  .kpi-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-  .kpi-title { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-soft); }
-  .kpi-id { font-family: var(--mono); font-size: 10px; color: var(--ink-dim); background: var(--bg-3); padding: 2px 6px; border-radius: 2px; letter-spacing: 0.06em; }
-  .kpi-value { font-family: var(--mono); font-weight: 500; font-size: 44px; line-height: 1; letter-spacing: -0.02em; color: var(--ink); font-variant-numeric: tabular-nums; margin-bottom: 12px; }
-  .kpi-value.loading { color: var(--ink-dim); animation: blink 1.4s ease-in-out infinite; }
-  @keyframes blink { 0%,100%{opacity:0.4;} 50%{opacity:0.85;} }
-  .kpi-foot { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11px; color: var(--ink-soft); padding-top: 12px; border-top: 1px solid var(--line); }
-  .kpi-foot .badge { color: var(--accent); background: #00ff9c14; padding: 2px 8px; border-radius: 2px; border: 1px solid #00ff9c30; font-weight: 500; }
-  .kpi[data-tone="2"] .kpi-foot .badge { color: var(--blue); background: #5cabff14; border-color: #5cabff30; }
-  .kpi[data-tone="3"] .kpi-foot .badge { color: var(--warn); background: #ffb54714; border-color: #ffb54730; }
+  /* ---------- KPI Cards ---------- */
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+    margin-bottom: 32px;
+  }
+  .kpi {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    padding: 24px 24px 22px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    transition: transform .18s ease;
+  }
+  .kpi:hover { transform: translateY(-2px); }
+  .kpi .kpi-label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 14px;
+  }
+  .kpi .kpi-value {
+    font-family: "Fraunces", serif;
+    font-weight: 500;
+    font-size: 52px;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .kpi .kpi-sub {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .kpi .kpi-bar {
+    position: absolute;
+    left: 0; bottom: 0;
+    height: 3px;
+    background: var(--accent);
+    width: 0;
+    transition: width .6s cubic-bezier(.2,.7,.2,1);
+  }
+  .kpi.k1 .kpi-bar { background: #1f7a4d; }
+  .kpi.k2 .kpi-bar { background: var(--accent); }
+  .kpi.k3 .kpi-bar { background: #2a4a7f; }
+  .kpi.k4 .kpi-bar { background: #a35400; }
 
-  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  @media (max-width: 800px) { .info-grid { grid-template-columns: 1fr; } }
-  .panel { background: var(--bg-1); border: 1px solid var(--line); border-radius: 4px; padding: 18px 20px; }
-  .panel h3 { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-soft); margin: 0 0 14px; font-weight: 500; display: flex; justify-content: space-between; align-items: center; }
-  .panel h3 .tag { font-size: 9px; color: var(--ink-dim); background: var(--bg-3); padding: 2px 6px; border-radius: 2px; }
-  .kv-table { width: 100%; border-collapse: collapse; }
-  .kv-table tr td { padding: 7px 0; border-bottom: 1px dashed var(--line); font-family: var(--mono); font-size: 12px; }
-  .kv-table tr:last-child td { border-bottom: none; }
-  .kv-table td.k { color: var(--ink-soft); width: 50%; }
-  .kv-table td.v { color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
-  .kv-table td.v .dim { color: var(--ink-dim); }
+  .kpi.loading .kpi-value { color: var(--ink-faint); }
+  .kpi.loading .kpi-value::after {
+    content: ""; display: inline-block;
+    width: 8px; height: 8px; margin-left: 4px;
+    border-radius: 50%; background: var(--ink-faint);
+    animation: blink 1s infinite;
+  }
+  @keyframes blink { 50% { opacity: 0.2; } }
 
-  #status { position: fixed; bottom: 24px; right: 24px; background: var(--bg-2); color: var(--ink); border: 1px solid var(--line-2); border-left: 3px solid var(--accent); font-family: var(--mono); font-size: 12px; padding: 12px 18px; border-radius: 3px; transform: translateY(150%); transition: transform 0.3s ease; max-width: 360px; z-index: 200; box-shadow: 0 10px 40px rgba(0,0,0,0.4); }
-  #status.show { transform: translateY(0); }
-  #status.error { border-left-color: var(--danger); }
-  #status.warn  { border-left-color: var(--warn); }
+  /* ---------- Meta / footer line ---------- */
+  .meta-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    padding-top: 18px;
+    border-top: 1px solid var(--rule);
+    letter-spacing: 0.04em;
+  }
+  .meta-line .right { display: flex; gap: 18px; }
+  .pill {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    padding: 4px 10px;
+    color: var(--ink-soft);
+  }
+  .pill.alert { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
 
-  #boot { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 300; flex-direction: column; gap: 18px; transition: opacity 0.3s, visibility 0.3s; }
-  #boot.hide { opacity: 0; visibility: hidden; }
-  #boot .ring { width: 32px; height: 32px; border: 2px solid var(--line-2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
-  #boot .label { font-family: var(--mono); font-size: 12px; color: var(--ink); text-transform: uppercase; letter-spacing: 0.16em; }
-  #boot .sub { font-family: var(--mono); font-size: 11px; color: var(--ink-soft); max-width: 320px; text-align: center; line-height: 1.5; }
-  #boot .timer { font-family: var(--mono); font-size: 10px; color: var(--ink-dim); margin-top: 4px; }
-  #boot .progress-bar { width: 240px; height: 2px; background: var(--bg-3); border-radius: 1px; overflow: hidden; position: relative; }
-  #boot .progress-bar::after { content: ""; position: absolute; top: 0; left: 0; height: 100%; width: 40%; background: var(--accent); border-radius: 1px; animation: progress-slide 1.6s ease-in-out infinite; }
-  @keyframes progress-slide { 0% { left: -40%; } 100% { left: 100%; } }
+  /* ---------- Error banner ---------- */
+  .err {
+    background: #fef2ef;
+    color: #8a2a0e;
+    border: 1px solid #f3c3b3;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    display: none;
+  }
+  .err.show { display: block; }
 
-  .container::before { content: ""; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, rgba(255,255,255,0.01) 0 1px, transparent 1px 3px); pointer-events: none; z-index: 1; }
+  /* ---------- Responsive ---------- */
+  @media (max-width: 1100px) {
+    .col-date { grid-column: span 6; }
+    .col-from { grid-column: span 3; }
+    .col-to   { grid-column: span 3; }
+    .col-ent  { grid-column: span 6; }
+    .col-acct { grid-column: span 6; }
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 640px) {
+    .shell { padding: 20px 18px 60px; }
+    .brand h1 { font-size: 28px; }
+    .filters { grid-template-columns: 1fr; }
+    .col-date, .col-from, .col-to, .col-ent, .col-acct { grid-column: span 1; }
+    .kpis { grid-template-columns: 1fr; }
+    .kpi .kpi-value { font-size: 44px; }
+  }
 </style>
 </head>
 <body>
+<div class="shell">
 
-<div id="boot">
-  <div class="ring"></div>
-  <div class="label">Loading dataset</div>
-  <div class="progress-bar"></div>
-  <div class="sub" id="boot-sub">Fetching from Metabase…</div>
-  <div class="timer" id="boot-timer">0s</div>
-</div>
-
-<div class="topbar">
-  <div class="brand">
-    <span class="pulse"></span>
-    <span>IMAGE_OPS</span>
-    <span class="sep">/</span>
-    <span class="env">LIVE</span>
-  </div>
-  <div class="meta">
-    <div class="meta-item"><span class="k">last_sync</span><span class="v" id="last-sync">—</span></div>
-    <div class="meta-item"><span class="k">next_refresh</span><span class="v" id="next-refresh">—</span></div>
-    <div class="meta-item"><span class="k">rows</span><span class="v" id="rows-total">—</span></div>
-  </div>
-  <div class="actions">
-    <button class="btn btn-ghost" id="apply-btn" title="Re-apply current filters">
-      <svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8h10M8 3l5 5-5 5"/></svg>
-      Apply
-    </button>
-    <button class="btn btn-primary" id="sync-btn" title="Force fresh fetch from Metabase">
-      <svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2v3h-3"/></svg>
-      Sync
-    </button>
-  </div>
-</div>
-
-<div class="container">
-
-  <div class="page-head">
-    <div>
-      <div class="crumb">Dashboard <span class="accent">/</span> Catalog Operations</div>
-      <h1>Throughput overview</h1>
+  <header class="top">
+    <div class="brand">
+      <span class="eyebrow">Spyne · Metabase Live</span>
+      <h1>Image Operations <em>Overview</em></h1>
     </div>
-    <div class="right-stats">
-      <div class="stat"><div class="l">Matched</div><div class="v" id="hs-matched">—</div></div>
-      <div class="stat"><div class="l">Total</div><div class="v" id="hs-total">—</div></div>
-      <div class="stat"><div class="l">Cells</div><div class="v" id="hs-cells">—</div></div>
-    </div>
-  </div>
-
-  <div class="filters">
-    <div class="f-group">
-      <div class="f-label">Date range · createdDate</div>
-      <div class="presets" id="presets">
-        <button class="chip" data-preset="this_week">This week</button>
-        <button class="chip" data-preset="last_week">Last week</button>
-        <button class="chip" data-preset="this_month">This month</button>
-        <button class="chip" data-preset="last_month">Last month</button>
-        <button class="chip" data-preset="last_3_weeks">Last 3w</button>
-        <button class="chip" data-preset="last_3_months">Last 3m</button>
-        <button class="chip active" data-preset="custom">Custom</button>
+    <div class="status-cluster">
+      <div class="last-updated">
+        <div>Last sync · <span class="val" id="lastSync">—</span></div>
+        <div>Rows loaded · <span class="val" id="rowCount">—</span></div>
       </div>
-      <div class="date-inputs">
-        <input type="date" id="from" class="field" />
-        <span class="dash">→</span>
-        <input type="date" id="to"   class="field" />
+      <span class="timer-chip" title="Auto-refresh every hour">
+        <span class="timer-dot" id="timerDot"></span>
+        Next sync in <span id="countdown">60:00</span>
+      </span>
+      <button class="sync-btn" id="syncBtn" title="Force refresh from Metabase">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/>
+        </svg>
+        <span id="syncBtnLabel">Sync now</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="err" id="errBanner"></div>
+
+  <section class="filters">
+    <div class="filter-group col-date">
+      <label for="datePreset">Date range · created</label>
+      <select class="field" id="datePreset">
+        <option value="this_week">This week</option>
+        <option value="this_month" selected>This month</option>
+        <option value="last_3_weeks">Last 3 weeks</option>
+        <option value="last_3_months">Last 3 months</option>
+        <option value="custom">Custom range</option>
+        <option value="all">All time</option>
+      </select>
+    </div>
+    <div class="filter-group col-from">
+      <label for="dateFrom">From</label>
+      <input type="date" class="field" id="dateFrom" disabled />
+    </div>
+    <div class="filter-group col-to">
+      <label for="dateTo">To</label>
+      <input type="date" class="field" id="dateTo" disabled />
+    </div>
+    <div class="filter-group col-ent">
+      <label>Enterprise name</label>
+      <div class="multi" id="msEnterprise">
+        <div class="multi-trigger"><span class="multi-label">All enterprises</span><span class="caret">▼</span></div>
+        <div class="multi-panel">
+          <input type="text" class="multi-search" placeholder="Search enterprises…" />
+          <div class="multi-actions">
+            <button data-act="all">Select all</button>
+            <button data-act="none">Clear</button>
+          </div>
+          <div class="multi-list"></div>
+        </div>
       </div>
     </div>
-    <div class="f-group">
-      <div class="f-label">Enterprise</div>
-      <select id="enterprise" class="field"><option value="">All enterprises</option></select>
+    <div class="filter-group col-acct">
+      <label>Account type</label>
+      <div class="multi" id="msAccount">
+        <div class="multi-trigger"><span class="multi-label">All account types</span><span class="caret">▼</span></div>
+        <div class="multi-panel">
+          <input type="text" class="multi-search" placeholder="Search…" />
+          <div class="multi-actions">
+            <button data-act="all">Select all</button>
+            <button data-act="none">Clear</button>
+          </div>
+          <div class="multi-list"></div>
+        </div>
+      </div>
     </div>
-    <div class="f-group">
-      <div class="f-label">Account type</div>
-      <select id="account_type" class="field"><option value="">All account types</option></select>
+  </section>
+
+  <section class="kpis">
+    <div class="kpi k1 loading">
+      <div class="kpi-label">Unique enterprises</div>
+      <div class="kpi-value" id="kEnt">—</div>
+      <div class="kpi-sub" id="kEntSub">awaiting data…</div>
+      <div class="kpi-bar"></div>
+    </div>
+    <div class="kpi k2 loading">
+      <div class="kpi-label">Unique image IDs</div>
+      <div class="kpi-value" id="kImg">—</div>
+      <div class="kpi-sub" id="kImgSub">awaiting data…</div>
+      <div class="kpi-bar"></div>
+    </div>
+    <div class="kpi k3 loading">
+      <div class="kpi-label">Unique SKU IDs</div>
+      <div class="kpi-value" id="kSku">—</div>
+      <div class="kpi-sub" id="kSkuSub">awaiting data…</div>
+      <div class="kpi-bar"></div>
+    </div>
+    <div class="kpi k4 loading">
+      <div class="kpi-label">Edited images <span style="color:var(--ink-faint);font-weight:400">· image_action ≠ ∅</span></div>
+      <div class="kpi-value" id="kEdit">—</div>
+      <div class="kpi-sub" id="kEditSub">awaiting data…</div>
+      <div class="kpi-bar"></div>
+    </div>
+  </section>
+
+  <div class="meta-line">
+    <div>Source · metabase.spyne.ai (public) · cached 1h</div>
+    <div class="right">
+      <span class="pill" id="filteredPill">Showing all rows</span>
+      <span class="pill" id="cachePill">—</span>
     </div>
   </div>
-
-  <div class="kpi-row">
-    <div class="kpi" data-tone="1">
-      <div class="kpi-head"><div class="kpi-title">Distinct SKUs</div><div class="kpi-id">KPI_01</div></div>
-      <div class="kpi-value loading" id="m-sku">—</div>
-      <div class="kpi-foot"><span>unique sku_id</span><span class="badge" id="m-sku-extra">—</span></div>
-    </div>
-    <div class="kpi" data-tone="2">
-      <div class="kpi-head"><div class="kpi-title">Distinct images</div><div class="kpi-id">KPI_02</div></div>
-      <div class="kpi-value loading" id="m-img">—</div>
-      <div class="kpi-foot"><span>unique image_id</span><span class="badge" id="m-img-extra">—</span></div>
-    </div>
-    <div class="kpi" data-tone="3">
-      <div class="kpi-head"><div class="kpi-title">Edited images</div><div class="kpi-id">KPI_03</div></div>
-      <div class="kpi-value loading" id="m-edit">—</div>
-      <div class="kpi-foot"><span>image_action ≠ null</span><span class="badge" id="m-edit-extra">—</span></div>
-    </div>
-  </div>
-
-  <div class="info-grid">
-    <div class="panel">
-      <h3>Active filters <span class="tag">FILTER_STATE</span></h3>
-      <table class="kv-table">
-        <tr><td class="k">date.from</td><td class="v" id="d-from">—</td></tr>
-        <tr><td class="k">date.to</td><td class="v" id="d-to">—</td></tr>
-        <tr><td class="k">enterprise_name</td><td class="v" id="d-ent">All</td></tr>
-        <tr><td class="k">account_type</td><td class="v" id="d-acc">All</td></tr>
-      </table>
-    </div>
-    <div class="panel">
-      <h3>Runtime <span class="tag">META</span></h3>
-      <table class="kv-table">
-        <tr><td class="k">data.source</td><td class="v"><span class="dim">metabase / public_csv</span></td></tr>
-        <tr><td class="k">cache.ttl</td><td class="v">60 min</td></tr>
-        <tr><td class="k">cache.source</td><td class="v" id="d-cache-src">—</td></tr>
-        <tr><td class="k">payload.version</td><td class="v" id="d-version">—</td></tr>
-      </table>
-    </div>
-  </div>
-
 </div>
-
-<div id="status"></div>
 
 <script>
-  const API = '/api/data';   // matches your filename: api/data.js
-  const REFRESH_MS = 60 * 60 * 1000;
-  const LS_KEY = 'imgops:cube:v2';
-  const LS_FILTERS = 'imgops:filters:v2';
-  const STALE_AFTER_MS = 60 * 60 * 1000;
+  // ---------------- State ----------------
+  const state = {
+    records: [],
+    fetchedAt: 0,
+    filters: {
+      datePreset: "this_month",
+      from: null,
+      to: null,
+      enterprises: new Set(),   // empty = "all"
+      accounts: new Set(),      // empty = "all"
+    },
+  };
 
-  let payload = null;
-  let refreshTimer = null;
+  const REFRESH_MS = 60 * 60 * 1000; // 1 hour
+  let nextRefreshAt = Date.now() + REFRESH_MS;
   let countdownTimer = null;
-  let bootTimer = null;
-  let nextRefreshAt = null;
 
-  // Cube cell layout: [date, ent, acc, rows, skuCount, imgCount, editedRows, editedImgCount]
-  const C = { DATE: 0, ENT: 1, ACC: 2, ROWS: 3, SKU: 4, IMG: 5, EDIT: 6, EDIT_IMG: 7 };
-
-  const el = id => document.getElementById(id);
-  const $boot = el('boot'), $bootSub = el('boot-sub'), $bootTimer = el('boot-timer');
-  const fromInput = el('from'), toInput = el('to');
-  const entSel = el('enterprise'), accSel = el('account_type');
-  const applyBtn = el('apply-btn'), syncBtn = el('sync-btn');
-  const lastSyncEl = el('last-sync'), nextRefreshEl = el('next-refresh');
-  const status = el('status');
-
-  const fmt = n => (n === null || n === undefined) ? '—' : new Intl.NumberFormat('en-US').format(n);
-  const pad = n => String(n).padStart(2, '0');
-  const toISO = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-
-  function showStatus(msg, kind) {
-    status.textContent = msg;
-    status.classList.remove('error', 'warn');
-    if (kind === 'error') status.classList.add('error');
-    if (kind === 'warn')  status.classList.add('warn');
-    status.classList.add('show');
-    clearTimeout(showStatus._t);
-    showStatus._t = setTimeout(() => status.classList.remove('show'), 4500);
-  }
-
-  function presetRange(name) {
-    const today = new Date(); today.setHours(0,0,0,0);
-    const d = new Date(today);
-    let from, to;
-    if (name === 'this_week') {
-      const dow = (d.getDay() + 6) % 7;
-      from = new Date(d); from.setDate(d.getDate() - dow);
-      to = new Date(from); to.setDate(from.getDate() + 6);
-    } else if (name === 'last_week') {
-      const dow = (d.getDay() + 6) % 7;
-      to = new Date(d); to.setDate(d.getDate() - dow - 1);
-      from = new Date(to); from.setDate(to.getDate() - 6);
-    } else if (name === 'this_month') {
-      from = new Date(d.getFullYear(), d.getMonth(), 1);
-      to = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-    } else if (name === 'last_month') {
-      from = new Date(d.getFullYear(), d.getMonth() - 1, 1);
-      to = new Date(d.getFullYear(), d.getMonth(), 0);
-    } else if (name === 'last_3_weeks') {
-      to = new Date(d); from = new Date(d); from.setDate(d.getDate() - 21 + 1);
-    } else if (name === 'last_3_months') {
-      to = new Date(d); from = new Date(d.getFullYear(), d.getMonth() - 3, d.getDate() + 1);
-    } else { return null; }
-    return { from: toISO(from), to: toISO(to) };
-  }
-
-  function setPreset(name) {
-    document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.preset === name));
-    if (name === 'custom') { fromInput.disabled = false; toInput.disabled = false; return; }
-    const r = presetRange(name);
-    if (r) { fromInput.value = r.from; toInput.value = r.to; fromInput.disabled = true; toInput.disabled = true; }
-  }
-
-  function persistFilters() {
-    try {
-      localStorage.setItem(LS_FILTERS, JSON.stringify({
-        from: fromInput.value, to: toInput.value,
-        enterprise: entSel.value, account_type: accSel.value,
-        preset: document.querySelector('.chip.active')?.dataset.preset || 'custom',
-      }));
-    } catch (e) {}
-  }
-  function restoreFilters() {
-    try {
-      const raw = localStorage.getItem(LS_FILTERS);
-      if (!raw) return;
-      const f = JSON.parse(raw);
-      if (f.preset && f.preset !== 'custom') setPreset(f.preset);
-      else {
-        setPreset('custom');
-        if (f.from) fromInput.value = f.from;
-        if (f.to)   toInput.value = f.to;
-      }
-      restoreFilters._pendingEnt = f.enterprise || '';
-      restoreFilters._pendingAcc = f.account_type || '';
-    } catch (e) {}
-  }
-
-  function fillSelect(sel, values) {
-    const keep = sel.value || (sel === entSel ? restoreFilters._pendingEnt : restoreFilters._pendingAcc) || '';
-    sel.innerHTML = `<option value="">All ${sel === entSel ? 'enterprises' : 'account types'}</option>`;
-    for (const v of values) {
-      const opt = document.createElement('option');
-      opt.value = v; opt.textContent = v;
-      sel.appendChild(opt);
-    }
-    if (keep && values.includes(keep)) sel.value = keep;
-  }
-
-  // ---------- Cube aggregation: sum matching cells ----------
-  function compute() {
-    if (!payload) return null;
-    const from = fromInput.value || null;
-    const to   = toInput.value   || null;
-    const ent  = entSel.value    || null;
-    const acc  = accSel.value    || null;
-
-    const cells = payload.cells;
-    let rows = 0, sku = 0, img = 0, edited = 0, editedImg = 0;
-
-    for (let i = 0; i < cells.length; i++) {
-      const c = cells[i];
-      const d = c[C.DATE];
-      if (from && d < from) continue;
-      if (to && d > to) continue;
-      if (ent && c[C.ENT] !== ent) continue;
-      if (acc && c[C.ACC] !== acc) continue;
-
-      rows      += c[C.ROWS];
-      sku       += c[C.SKU];
-      img       += c[C.IMG];
-      edited    += c[C.EDIT];
-      editedImg += c[C.EDIT_IMG];
-    }
-    return { matched: rows, total: payload.totalRows, sku, img, edited, editedImg };
-  }
-
-  function render() {
-    if (!payload) return;
-    const t0 = performance.now();
-    const r = compute();
-    const ms = (performance.now() - t0).toFixed(1);
-
-    el('m-sku').textContent = fmt(r.sku);
-    el('m-sku').classList.remove('loading');
-    el('m-img').textContent = fmt(r.img);
-    el('m-img').classList.remove('loading');
-    el('m-edit').textContent = fmt(r.edited);
-    el('m-edit').classList.remove('loading');
-
-    el('m-sku-extra').textContent  = r.sku > 0 ? `${(r.img / r.sku).toFixed(1)} img/sku` : '—';
-    el('m-img-extra').textContent  = `${fmt(r.matched)} rows`;
-    el('m-edit-extra').textContent = r.img > 0 ? `${Math.round((r.editedImg / r.img) * 100)}% rate` : '0%';
-
-    el('hs-matched').textContent = fmt(r.matched);
-    el('hs-total').textContent   = fmt(r.total);
-    el('hs-cells').textContent   = fmt(payload.cellCount);
-
-    el('d-from').textContent = fromInput.value || '—';
-    el('d-to').textContent   = toInput.value   || '—';
-    el('d-ent').textContent  = entSel.value    || 'All';
-    el('d-acc').textContent  = accSel.value    || 'All';
-
-    persistFilters();
-    console.debug(`Aggregated ${payload.cellCount} cells in ${ms}ms`);
-  }
-
-  function renderMeta() {
-    if (!payload) return;
-    el('rows-total').textContent = fmt(payload.totalRows);
-    const t = new Date(payload.fetchedAt);
-    lastSyncEl.textContent = t.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
-      + ' · ' + t.toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
-    el('d-cache-src').textContent = payload._loadedFrom || '—';
-    el('d-version').textContent = `v${payload.version}`;
-  }
-
-  function loadFromCache() {
-    try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (!raw) return null;
-      const p = JSON.parse(raw);
-      if (!p || !p.cells) return null;
-      return p;
-    } catch (e) { return null; }
-  }
-  function saveToCache(p) {
-    try { localStorage.setItem(LS_KEY, JSON.stringify(p)); }
-    catch (e) {
-      try { localStorage.removeItem(LS_KEY); localStorage.setItem(LS_KEY, JSON.stringify(p)); }
-      catch (e2) { showStatus('Cache full — data held in memory only.', 'warn'); }
-    }
-  }
-
-  function startBootTimer() {
-    const t0 = Date.now();
-    bootTimer = setInterval(() => {
-      const s = ((Date.now() - t0) / 1000).toFixed(0);
-      $bootTimer.textContent = `${s}s`;
-      if (s > 20) $bootSub.textContent = 'Still loading — large datasets can take up to 60s on first sync.';
-      else if (s > 8) $bootSub.textContent = 'Parsing and aggregating the dataset…';
-    }, 1000);
-  }
-  function stopBootTimer() {
-    if (bootTimer) clearInterval(bootTimer);
-    bootTimer = null;
-  }
-
-  async function fetchFromServer({ force = false } = {}) {
-    syncBtn.disabled = true; applyBtn.disabled = true;
-    syncBtn.classList.add('syncing');
-    const t0 = performance.now();
-
-    try {
-      const url = force ? `${API}?refresh=1&t=${Date.now()}` : API;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error || 'Unknown error');
-
-      data._loadedFrom = data.fromMemoryCache ? 'server_memory_cache' : 'network';
-      payload = data;
-      saveToCache(payload);
-
-      fillSelect(entSel, payload.filterOptions.enterprise_name || []);
-      fillSelect(accSel, payload.filterOptions.account_type    || []);
-
-      renderMeta(); render();
-      scheduleAutoRefresh();
-      const sec = ((performance.now() - t0) / 1000).toFixed(1);
-      showStatus(`Loaded ${fmt(payload.totalRows)} rows · ${fmt(payload.cellCount)} cells in ${sec}s`);
-    } catch (err) {
-      showStatus(`Sync failed: ${err.message}`, 'error');
-      console.error(err);
-    } finally {
-      syncBtn.disabled = false; applyBtn.disabled = false;
-      syncBtn.classList.remove('syncing');
-      stopBootTimer();
-      $boot.classList.add('hide');
-    }
-  }
-
-  function scheduleAutoRefresh() {
-    if (refreshTimer) clearTimeout(refreshTimer);
-    nextRefreshAt = Date.now() + REFRESH_MS;
-    refreshTimer = setTimeout(() => fetchFromServer({ force: false }), REFRESH_MS);
-    tickCountdown();
-  }
-  function tickCountdown() {
-    if (countdownTimer) clearInterval(countdownTimer);
-    const update = () => {
-      if (!nextRefreshAt) { nextRefreshEl.textContent = '—'; return; }
-      const ms = nextRefreshAt - Date.now();
-      if (ms <= 0) { nextRefreshEl.textContent = '00:00'; return; }
-      const m = Math.floor(ms / 60000), s = Math.floor((ms % 60000) / 1000);
-      nextRefreshEl.textContent = `${pad(m)}:${pad(s)}`;
-    };
-    update();
-    countdownTimer = setInterval(update, 1000);
-  }
-
-  document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { setPreset(c.dataset.preset); render(); }));
-  [fromInput, toInput].forEach(inp => inp.addEventListener('change', () => { setPreset('custom'); render(); }));
-  entSel.addEventListener('change', render);
-  accSel.addEventListener('change', render);
-  applyBtn.addEventListener('click', render);
-  syncBtn.addEventListener('click', () => {
-    $boot.classList.remove('hide');
-    $bootSub.textContent = 'Forcing a fresh fetch from Metabase…';
-    startBootTimer();
-    fetchFromServer({ force: true });
+  // ---------------- Helpers ----------------
+  const $ = (sel) => document.querySelector(sel);
+  const fmt = (n) => new Intl.NumberFormat("en-US").format(n);
+  const fmtDateTime = (ms) => new Date(ms).toLocaleString(undefined, {
+    month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
   });
 
-  setPreset('last_3_months');
-  restoreFilters();
+  function parseDate(s) {
+    if (!s) return null;
+    // Try ISO first
+    const d = new Date(s);
+    if (!isNaN(d)) return d;
+    return null;
+  }
 
-  (async function boot() {
-    const cached = loadFromCache();
-    if (cached) {
-      cached._loadedFrom = 'browser_cache';
-      payload = cached;
-      fillSelect(entSel, payload.filterOptions.enterprise_name || []);
-      fillSelect(accSel, payload.filterOptions.account_type    || []);
-      renderMeta(); render();
-      $boot.classList.add('hide');
-      scheduleAutoRefresh();
+  function startOfDay(d) { const x = new Date(d); x.setHours(0,0,0,0); return x; }
+  function endOfDay(d)   { const x = new Date(d); x.setHours(23,59,59,999); return x; }
 
-      const fetchedAt = new Date(payload.fetchedAt).getTime();
-      if (isNaN(fetchedAt) || (Date.now() - fetchedAt) > STALE_AFTER_MS) {
-        showStatus('Cache is stale — refreshing in background…', 'warn');
-        fetchFromServer({ force: false });
-      }
-    } else {
-      startBootTimer();
-      await fetchFromServer({ force: false });
+  function rangeForPreset(preset, customFrom, customTo) {
+    const now = new Date();
+    if (preset === "this_week") {
+      const start = new Date(now);
+      const day = (start.getDay() + 6) % 7; // Monday=0
+      start.setDate(start.getDate() - day);
+      return [startOfDay(start), endOfDay(now)];
     }
-  })();
-</script>
+    if (preset === "this_month") {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      return [startOfDay(start), endOfDay(now)];
+    }
+    if (preset === "last_3_weeks") {
+      const start = new Date(now); start.setDate(start.getDate() - 21);
+      return [startOfDay(start), endOfDay(now)];
+    }
+    if (preset === "last_3_months") {
+      const start = new Date(now); start.setMonth(start.getMonth() - 3);
+      return [startOfDay(start), endOfDay(now)];
+    }
+    if (preset === "custom") {
+      const f = customFrom ? startOfDay(new Date(customFrom)) : null;
+      const t = customTo   ? endOfDay(new Date(customTo))   : null;
+      return [f, t];
+    }
+    return [null, null]; // all time
+  }
 
+  // ---------------- Fetch ----------------
+  async function fetchData(force = false) {
+    try {
+      setSyncing(true);
+      const url = force ? "/api/data?refresh=1" : "/api/data";
+      const res = await fetch(url, { cache: "no-store" });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || "Unknown error");
+
+      state.records = json.records || [];
+      state.fetchedAt = json.fetchedAt || Date.now();
+
+      $("#lastSync").textContent = fmtDateTime(state.fetchedAt);
+      $("#rowCount").textContent = fmt(state.records.length);
+      $("#cachePill").textContent = json.cached ? "served from cache" : "fresh pull";
+      $("#cachePill").classList.toggle("alert", !json.cached);
+
+      // Build filter options once we know the columns / values
+      buildEnterpriseOptions();
+      buildAccountOptions();
+      hideError();
+      applyAndRender();
+
+      nextRefreshAt = Date.now() + REFRESH_MS;
+    } catch (err) {
+      showError("Couldn't load data: " + err.message);
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  function showError(msg) {
+    const el = $("#errBanner");
+    el.textContent = msg;
+    el.classList.add("show");
+  }
+  function hideError() { $("#errBanner").classList.remove("show"); }
+
+  function setSyncing(on) {
+    const btn = $("#syncBtn");
+    btn.disabled = on;
+    btn.classList.toggle("is-syncing", on);
+    $("#syncBtnLabel").textContent = on ? "Syncing…" : "Sync now";
+    $("#timerDot").classList.toggle("syncing", on);
+  }
+
+  // ---------------- Filters: Multi-select ----------------
+  function setupMultiSelect(rootSel, onChange) {
+    const root = document.querySelector(rootSel);
+    const trigger = root.querySelector(".multi-trigger");
+    const search = root.querySelector(".multi-search");
+    const list = root.querySelector(".multi-list");
+    const label = root.querySelector(".multi-label");
+
+    trigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      // close any other open multi
+      document.querySelectorAll(".multi.open").forEach(m => { if (m !== root) m.classList.remove("open"); });
+      root.classList.toggle("open");
+    });
+    document.addEventListener("click", (e) => {
+      if (!root.contains(e.target)) root.classList.remove("open");
+    });
+    search.addEventListener("input", () => {
+      const q = search.value.toLowerCase();
+      list.querySelectorAll(".multi-opt").forEach(opt => {
+        const txt = opt.dataset.value.toLowerCase();
+        opt.style.display = txt.includes(q) ? "" : "none";
+      });
+    });
+    root.querySelectorAll(".multi-actions button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const act = btn.dataset.act;
+        list.querySelectorAll("input[type=checkbox]").forEach(cb => {
+          cb.checked = (act === "all");
+        });
+        onChange(getSelected(root));
+        updateLabel(root, label);
+      });
+    });
+
+    return {
+      render(options, selectedSet) {
+        list.innerHTML = "";
+        options.forEach(({ value, count }) => {
+          const id = "opt_" + Math.random().toString(36).slice(2, 8);
+          const row = document.createElement("label");
+          row.className = "multi-opt";
+          row.dataset.value = value;
+          row.innerHTML = `
+            <input type="checkbox" id="${id}" ${selectedSet.has(value) ? "checked" : ""} />
+            <span>${escapeHtml(value || "(empty)")}</span>
+            <span class="count">${fmt(count)}</span>`;
+          row.querySelector("input").addEventListener("change", () => {
+            onChange(getSelected(root));
+            updateLabel(root, label);
+          });
+          list.appendChild(row);
+        });
+        updateLabel(root, label);
+      }
+    };
+  }
+
+  function getSelected(root) {
+    const set = new Set();
+    root.querySelectorAll("input[type=checkbox]:checked").forEach(cb => {
+      set.add(cb.parentElement.dataset.value);
+    });
+    return set;
+  }
+
+  function updateLabel(root, label) {
+    const checked = root.querySelectorAll("input[type=checkbox]:checked").length;
+    const total = root.querySelectorAll("input[type=checkbox]").length;
+    if (checked === 0 || checked === total) {
+      label.textContent = root.id === "msEnterprise" ? "All enterprises" : "All account types";
+    } else if (checked === 1) {
+      const v = [...getSelected(root)][0];
+      label.textContent = v || "(empty)";
+    } else {
+      label.textContent = `${checked} selected`;
+    }
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+  }
+
+  // Build option lists from current records
+  let entMulti, acctMulti;
+
+  function buildEnterpriseOptions() {
+    const counts = new Map();
+    for (const r of state.records) {
+      const v = (r.enterprise_name || "").trim();
+      counts.set(v, (counts.get(v) || 0) + 1);
+    }
+    const opts = [...counts.entries()]
+      .sort((a,b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([value, count]) => ({ value, count }));
+    entMulti.render(opts, state.filters.enterprises);
+  }
+
+  function buildAccountOptions() {
+    const counts = new Map();
+    for (const r of state.records) {
+      const v = (r.account_type || "").trim();
+      counts.set(v, (counts.get(v) || 0) + 1);
+    }
+    const opts = [...counts.entries()]
+      .sort((a,b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([value, count]) => ({ value, count }));
+    acctMulti.render(opts, state.filters.accounts);
+  }
+
+  // ---------------- Filtering + KPIs ----------------
+  function applyAndRender() {
+    const f = state.filters;
+    const [from, to] = rangeForPreset(f.datePreset, f.from, f.to);
+
+    const filtered = state.records.filter(r => {
+      // Date filter on createdDate
+      if (from || to) {
+        const d = parseDate(r.createdDate);
+        if (!d) return false;
+        if (from && d < from) return false;
+        if (to && d > to) return false;
+      }
+      // Enterprise
+      if (f.enterprises.size > 0) {
+        if (!f.enterprises.has((r.enterprise_name || "").trim())) return false;
+      }
+      // Account type
+      if (f.accounts.size > 0) {
+        if (!f.accounts.has((r.account_type || "").trim())) return false;
+      }
+      return true;
+    });
+
+    const uniqEnt  = new Set();
+    const uniqImg  = new Set();
+    const uniqSku  = new Set();
+    const uniqEdit = new Set();
+
+    for (const r of filtered) {
+      const ent = (r.enterprise_name || "").trim();
+      if (ent) uniqEnt.add(ent);
+
+      const img = (r["b.image_id"] || r.image_id || "").trim();
+      if (img) uniqImg.add(img);
+
+      const sku = (r.sku_id || "").trim();
+      if (sku) uniqSku.add(sku);
+
+      const action = (r.image_action || "").trim();
+      const isNull = !action || action.toLowerCase() === "null";
+      if (!isNull && img) uniqEdit.add(img);
+    }
+
+    setKpi("kEnt",  uniqEnt.size,  `from ${fmt(filtered.length)} rows`);
+    setKpi("kImg",  uniqImg.size,  `from ${fmt(filtered.length)} rows`);
+    setKpi("kSku",  uniqSku.size,  `from ${fmt(filtered.length)} rows`);
+    const editPct = uniqImg.size > 0 ? ((uniqEdit.size / uniqImg.size) * 100).toFixed(1) : "0.0";
+    setKpi("kEdit", uniqEdit.size, `${editPct}% of unique images`);
+
+    // Meta line
+    const totalRows = state.records.length;
+    $("#filteredPill").textContent = filtered.length === totalRows
+      ? `Showing all ${fmt(totalRows)} rows`
+      : `Showing ${fmt(filtered.length)} of ${fmt(totalRows)} rows`;
+  }
+
+  function setKpi(id, value, sub) {
+    const el = $("#" + id);
+    el.textContent = fmt(value);
+    el.parentElement.classList.remove("loading");
+    $("#" + id + "Sub").textContent = sub;
+    // animate bar
+    const bar = el.parentElement.querySelector(".kpi-bar");
+    bar.style.width = "0%";
+    requestAnimationFrame(() => { bar.style.width = "100%"; });
+  }
+
+  // ---------------- Countdown ----------------
+  function tickCountdown() {
+    const ms = Math.max(0, nextRefreshAt - Date.now());
+    const totalSec = Math.floor(ms / 1000);
+    const mm = String(Math.floor(totalSec / 60)).padStart(2, "0");
+    const ss = String(totalSec % 60).padStart(2, "0");
+    $("#countdown").textContent = `${mm}:${ss}`;
+    if (ms <= 0) {
+      nextRefreshAt = Date.now() + REFRESH_MS;
+      fetchData(false);
+    }
+  }
+
+  // ---------------- Init ----------------
+  function init() {
+    // Multi-selects
+    entMulti = setupMultiSelect("#msEnterprise", (sel) => {
+      state.filters.enterprises = sel;
+      applyAndRender();
+    });
+    acctMulti = setupMultiSelect("#msAccount", (sel) => {
+      state.filters.accounts = sel;
+      applyAndRender();
+    });
+
+    // Date preset
+    $("#datePreset").addEventListener("change", (e) => {
+      const v = e.target.value;
+      state.filters.datePreset = v;
+      const customOn = v === "custom";
+      $("#dateFrom").disabled = !customOn;
+      $("#dateTo").disabled = !customOn;
+      applyAndRender();
+    });
+    $("#dateFrom").addEventListener("change", (e) => {
+      state.filters.from = e.target.value;
+      applyAndRender();
+    });
+    $("#dateTo").addEventListener("change", (e) => {
+      state.filters.to = e.target.value;
+      applyAndRender();
+    });
+
+    // Sync button — forces a fresh fetch from Metabase
+    $("#syncBtn").addEventListener("click", () => fetchData(true));
+
+    // Initial pull
+    fetchData(false);
+
+    // Countdown
+    countdownTimer = setInterval(tickCountdown, 1000);
+    tickCountdown();
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+</script>
 </body>
 </html>
