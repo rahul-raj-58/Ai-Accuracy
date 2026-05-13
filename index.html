@@ -1444,41 +1444,41 @@
       return true;
     });
 
-    // ---- KPI computation on AGGREGATED rows ----
-    // Each row is one (date, enterprise, account_type) bucket containing:
-    //   unique_images : exact-count of image_ids in this bucket (image_id is globally unique → safe to sum)
-    //   unique_skus   : exact-count of sku_ids in this bucket (sku_ids span buckets → NOT safe to sum)
-    //   edited_images : exact-count of edited image_ids in this bucket (safe to sum, same reason)
-    //   sku_ids       : array of distinct sku_id values in this bucket (used to compute true uniques)
-    //   total_rows    : raw row count, for the meta line only
-
-    let totalImages = 0;
-    let totalEdited = 0;
-    let totalRowsFiltered = 0;
+    // ---- KPI computation on RAW records ----
+    // Each row is one raw image record; we need to deduplicate
     const uniqEnt = new Set();
-    const skuUnion = new Set();
+    const uniqImg = new Set();
+    const uniqSku = new Set();
+    const uniqEdit = new Set();
 
     for (const r of filtered) {
+      // Enterprise
       const ent = (r.enterprise_name || "").trim();
       if (ent) uniqEnt.add(ent);
 
-      totalImages += toInt(r.unique_images);
-      totalEdited += toInt(r.edited_images);
-      totalRowsFiltered += toInt(r.total_rows);
-
-      // Union the per-bucket sku arrays for an exact distinct count.
-      const skuField = r.sku_ids;
-      if (skuField) {
-        const list = parseSkuArray(skuField);
-        for (const s of list) if (s) skuUnion.add(s);
+      // Image ID (globally unique)
+      const imgId = (r["b.image_id"] || "").trim();
+      if (imgId) {
+        uniqImg.add(imgId);
+        
+        // Track edited images
+        const action = (r.image_action || "").trim();
+        const isNull = !action || action.toLowerCase() === "null";
+        if (!isNull) {
+          uniqEdit.add(imgId);
+        }
       }
+
+      // SKU ID
+      const skuId = (r.sku_id || "").trim();
+      if (skuId) uniqSku.add(skuId);
     }
 
-    setKpi("kEnt",  uniqEnt.size,  `across ${fmt(filtered.length)} buckets`);
-    setKpi("kImg",  totalImages,   `from ${fmt(totalRowsFiltered)} raw rows`);
-    setKpi("kSku",  skuUnion.size, `unique across all buckets`);
-    const editPct = totalImages > 0 ? ((totalEdited / totalImages) * 100).toFixed(1) : "0.0";
-    const aiAccuracy = totalImages > 0 ? (100 - parseFloat(editPct)).toFixed(1) : "100.0";
+    setKpi("kEnt",  uniqEnt.size,  `from ${fmt(filtered.length)} rows`);
+    setKpi("kImg",  uniqImg.size,  `from ${fmt(filtered.length)} rows`);
+    setKpi("kSku",  uniqSku.size,  `from ${fmt(filtered.length)} rows`);
+    const editPct = uniqImg.size > 0 ? ((uniqEdit.size / uniqImg.size) * 100).toFixed(1) : "0.0";
+    const aiAccuracy = uniqImg.size > 0 ? (100 - parseFloat(editPct)).toFixed(1) : "100.0";
     setKpi("kEdit", parseFloat(aiAccuracy), `${aiAccuracy}% images need no edits`);
 
     // Stash filtered set so detail panel can reuse without recomputing the filter pass.
@@ -1812,37 +1812,69 @@
   // ---------------- Trend lines ----------------
 
   function buildTrendData(filtered) {
-    // Group by createdDate, compute per-date metrics
+    // Group by createdDate, compute per-date metrics from raw records
     const byDate = new Map();
+    
     for (const r of filtered) {
       const d = (r.createdDate || "").trim();
       if (!d) continue;
+      
       let bucket = byDate.get(d);
       if (!bucket) {
         bucket = {
           date: d,
-          images: 0,
-          edited: 0,
-          byAccount: new Map(), // account_type -> { images, edited }
+          images: new Set(),    // unique image IDs
+          edited: new Set(),    // unique edited image IDs
+          byAccount: new Map(), // account_type -> { images: Set, edited: Set }
         };
         byDate.set(d, bucket);
       }
-      bucket.images += toInt(r.unique_images);
-      bucket.edited += toInt(r.edited_images);
+      
+      // Add image ID
+      const imgId = (r["b.image_id"] || "").trim();
+      if (imgId) {
+        bucket.images.add(imgId);
+        
+        // Check if edited
+        const action = (r.image_action || "").trim();
+        const isNull = !action || action.toLowerCase() === "null";
+        if (!isNull) {
+          bucket.edited.add(imgId);
+        }
+      }
 
+      // Track by account type
       const acct = (r.account_type || "").trim() || "—";
       let ab = bucket.byAccount.get(acct);
       if (!ab) {
-        ab = { images: 0, edited: 0 };
+        ab = { images: new Set(), edited: new Set() };
         bucket.byAccount.set(acct, ab);
       }
-      ab.images += toInt(r.unique_images);
-      ab.edited += toInt(r.edited_images);
+      if (imgId) {
+        ab.images.add(imgId);
+        const action = (r.image_action || "").trim();
+        const isNull = !action || action.toLowerCase() === "null";
+        if (!isNull) {
+          ab.edited.add(imgId);
+        }
+      }
     }
 
-    // Sort by date
+    // Convert sets to counts and sort by date
     const dates = [...byDate.keys()].sort();
-    const trends = dates.map(d => byDate.get(d));
+    const trends = dates.map(d => {
+      const bucket = byDate.get(d);
+      const byAccountCounts = new Map();
+      for (const [acct, ab] of bucket.byAccount) {
+        byAccountCounts.set(acct, { images: ab.images.size, edited: ab.edited.size });
+      }
+      return {
+        date: d,
+        images: bucket.images.size,
+        edited: bucket.edited.size,
+        byAccount: byAccountCounts,
+      };
+    });
 
     return trends;
   }
