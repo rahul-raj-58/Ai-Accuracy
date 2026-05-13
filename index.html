@@ -673,6 +673,188 @@
     border-color: #2d4a6d;
   }
 
+  /* ---------- Rejected comments section ---------- */
+  .rejected-section {
+    margin-bottom: 28px;
+  }
+  .rejected-container {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    padding: 20px 24px;
+    box-shadow: var(--shadow);
+  }
+  .rejected-header {
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 12px;
+  }
+  .rejected-header h2 {
+    font-family: "Fraunces", serif;
+    font-weight: 500;
+    font-size: 18px;
+    margin: 0 0 4px 0;
+    letter-spacing: -0.01em;
+  }
+  .rejected-sub {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0;
+  }
+  .rejected-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .rejected-item {
+    padding: 12px 16px;
+    background: var(--bg);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all .12s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .rejected-item:hover {
+    border-color: var(--accent);
+    background: var(--paper);
+    transform: translateX(2px);
+  }
+  .rejected-item-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .rejected-item-text {
+    font-family: "Inter Tight", sans-serif;
+    font-weight: 500;
+    font-size: 13px;
+    color: var(--ink);
+  }
+  .rejected-item-count {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+  }
+  .rejected-item-badge {
+    display: inline-block;
+    background: var(--accent);
+    color: var(--bg);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 600;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  /* Rejected modal */
+  .rejected-modal {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+  }
+  html[data-theme="dark"] .rejected-modal {
+    background: rgba(0, 0, 0, 0.7);
+  }
+  .rejected-modal-content {
+    background: var(--paper);
+    border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    max-width: 800px;
+    width: 100%;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+  }
+  html[data-theme="dark"] .rejected-modal-content {
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  }
+  .rejected-modal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .rejected-modal-head h3 {
+    font-family: "Fraunces", serif;
+    font-weight: 500;
+    font-size: 18px;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .rejected-close {
+    appearance: none;
+    border: 1px solid var(--rule);
+    background: var(--bg);
+    color: var(--ink-soft);
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    transition: all .12s ease;
+  }
+  .rejected-close:hover {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+  }
+  .rejected-modal-table-wrap {
+    flex: 1;
+    overflow-y: auto;
+  }
+  .rejected-modal-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .rejected-modal-table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
+    text-align: left;
+    padding: 10px 16px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 600;
+  }
+  .rejected-modal-table tbody td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--rule);
+    font-variant-numeric: tabular-nums;
+  }
+  .rejected-modal-table tbody td.num {
+    text-align: right;
+    font-family: "JetBrains Mono", monospace;
+  }
+  .rejected-modal-table tbody tr:hover td {
+    background: var(--bg);
+  }
+  .rejected-modal-foot {
+    padding: 10px 24px;
+    border-top: 1px solid var(--rule);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+  }
+
   /* ---------- Responsive ---------- */
   @media (max-width: 1100px) {
     .col-date { grid-column: span 6; }
@@ -855,6 +1037,33 @@
     </div>
   </section>
 
+  <!-- Rejected comments analysis -->
+  <section class="rejected-section" id="rejectedSection" hidden>
+    <div class="rejected-container">
+      <div class="rejected-header">
+        <h2>Rejected Comments Analysis</h2>
+        <p class="rejected-sub">Most common rejection reasons by count</p>
+      </div>
+      <div class="rejected-list" id="rejectedList"></div>
+    </div>
+    <!-- Drill-down detail modal -->
+    <div class="rejected-modal" id="rejectedModal" hidden>
+      <div class="rejected-modal-content">
+        <div class="rejected-modal-head">
+          <h3 id="rejectedModalTitle">—</h3>
+          <button type="button" class="rejected-close" id="rejectedClose" aria-label="Close">×</button>
+        </div>
+        <div class="rejected-modal-table-wrap">
+          <table class="rejected-modal-table" id="rejectedModalTable">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="rejected-modal-foot" id="rejectedModalFoot"></div>
+      </div>
+    </div>
+  </section>
+
   <div class="meta-line">
     <div>Source · metabase.spyne.ai (public) · cached 1h</div>
     <div class="right">
@@ -937,9 +1146,12 @@
   // ---------------- Fetch ----------------
   // Aggregated columns from the Metabase question.
   const FIELDS = [
+    // Aggregated KPI columns (from the aggregated Metabase query)
     "createdDate", "enterprise_name", "account_type",
     "unique_images", "unique_skus", "edited_images",
-    "sku_ids", "total_rows"
+    "sku_ids", "total_rows",
+    // Raw detail columns for rejected comments drill-down
+    "b.image_id", "rejected_comment", "image_action"
   ];
 
   let loadProgressTimer = null;
@@ -1286,6 +1498,9 @@
 
     // Re-render trend charts
     renderTrends();
+
+    // Re-render rejected comments analysis
+    renderRejected();
   }
 
   function toInt(v) {
@@ -1964,7 +2179,145 @@
     });
   }
 
-  // ---------------- Init ----------------
+  // ---- Rejected comments analysis ----
+  function renderRejected() {
+    const filtered = state._filteredCache || [];
+    if (filtered.length === 0) {
+      $("#rejectedSection").hidden = true;
+      return;
+    }
+
+    // Count rejected comments from raw data
+    const rejectedMap = new Map(); // comment -> count
+    for (const r of state.records) {
+      // Apply same filters as KPI cards
+      const dateObj = getDateFromRecord(r);
+      if (!isDateInRange(dateObj)) continue;
+      if (state.filters.enterprises.size > 0 && !state.filters.enterprises.has(r.enterprise_name)) continue;
+      if (state.filters.accounts.size > 0 && !state.filters.accounts.has(r.account_type)) continue;
+
+      const comment = (r.rejected_comment || "").trim();
+      if (comment && comment.toLowerCase() !== "null") {
+        rejectedMap.set(comment, (rejectedMap.get(comment) || 0) + 1);
+      }
+    }
+
+    if (rejectedMap.size === 0) {
+      $("#rejectedSection").hidden = true;
+      return;
+    }
+
+    $("#rejectedSection").hidden = false;
+
+    // Sort by count descending
+    const sorted = [...rejectedMap.entries()].sort((a, b) => b[1] - a[1]);
+
+    // Render list
+    const html = sorted.map(([comment, count]) => `
+      <div class="rejected-item" data-comment="${escapeHtml(comment)}">
+        <div class="rejected-item-left">
+          <div class="rejected-item-text">${escapeHtml(comment)}</div>
+          <div class="rejected-item-count">${count} rejection${count === 1 ? "" : "s"}</div>
+        </div>
+        <div class="rejected-item-badge">${count}</div>
+      </div>
+    `).join("");
+
+    $("#rejectedList").innerHTML = html;
+
+    // Add click handlers
+    document.querySelectorAll(".rejected-item").forEach(el => {
+      el.addEventListener("click", () => {
+        const comment = el.dataset.comment;
+        showRejectedModal(comment);
+      });
+    });
+  }
+
+  function showRejectedModal(selectedComment) {
+    // Build drill-down data by enterprise
+    const byEnterprise = new Map(); // enterprise -> { edited_images: Set, total: int }
+
+    for (const r of state.records) {
+      const dateObj = getDateFromRecord(r);
+      if (!isDateInRange(dateObj)) continue;
+      if (state.filters.enterprises.size > 0 && !state.filters.enterprises.has(r.enterprise_name)) continue;
+      if (state.filters.accounts.size > 0 && !state.filters.accounts.has(r.account_type)) continue;
+
+      const comment = (r.rejected_comment || "").trim();
+      if (comment !== selectedComment) continue;
+
+      const ent = (r.enterprise_name || "").trim() || "(empty)";
+      let bucket = byEnterprise.get(ent);
+      if (!bucket) {
+        bucket = { enterprise: ent, account_type: (r.account_type || "").trim() || "—", edited_images: new Set(), image_ids: new Set(), total: 0 };
+        byEnterprise.set(ent, bucket);
+      }
+
+      const imgId = (r["b.image_id"] || "").trim();
+      const isEdited = (r.image_action || "").trim();
+      if (imgId) {
+        bucket.image_ids.add(imgId);
+        if (isEdited && isEdited.toLowerCase() !== "null") {
+          bucket.edited_images.add(imgId);
+        }
+      }
+      bucket.total++;
+    }
+
+    // Build rows
+    const rows = [...byEnterprise.values()].sort((a, b) => b.total - a.total).map(bucket => ({
+      enterprise: bucket.enterprise,
+      account_type: bucket.account_type,
+      total_images: bucket.image_ids.size,
+      edited_count: bucket.edited_images.size,
+      rejections: bucket.total,
+      edited_images_list: [...bucket.edited_images].join(", ")
+    }));
+
+    // Render modal
+    $("#rejectedModalTitle").textContent = `Rejections for: ${selectedComment}`;
+
+    const thead = document.querySelector(".rejected-modal-table thead");
+    thead.innerHTML = `<tr>
+      <th>Enterprise</th>
+      <th>Account Type</th>
+      <th class="num">Total Images</th>
+      <th class="num">Edited</th>
+      <th class="num">Rejections</th>
+    </tr>`;
+
+    const tbody = document.querySelector(".rejected-modal-table tbody");
+    const tableHTML = rows.map(r => `<tr>
+      <td>${escapeHtml(r.enterprise)}</td>
+      <td>${escapeHtml(r.account_type)}</td>
+      <td class="num">${fmt(r.total_images)}</td>
+      <td class="num">${fmt(r.edited_count)}</td>
+      <td class="num">${fmt(r.rejections)}</td>
+    </tr>`).join("");
+
+    tbody.innerHTML = tableHTML || `<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--ink-faint);">No data</td></tr>`;
+
+    const totalRejections = rows.reduce((s, r) => s + r.rejections, 0);
+    const totalImages = rows.reduce((s, r) => s + r.total_images, 0);
+    const totalEdited = rows.reduce((s, r) => s + r.edited_count, 0);
+
+    $("#rejectedModalFoot").innerHTML = `
+      <div style="display: flex; justify-content: space-between;">
+        <span><strong>${fmt(rows.length)}</strong> enterprises · <strong>${fmt(totalImages)}</strong> images · <strong>${fmt(totalEdited)}</strong> edited</span>
+        <span><strong>${fmt(totalRejections)}</strong> rejections for this comment</span>
+      </div>
+    `;
+
+    $("#rejectedModal").hidden = false;
+  }
+
+  // Modal close
+  function closeRejectedModal() {
+    $("#rejectedModal").hidden = true;
+  }
+
+  // ---------- Init ----------------
   function init() {
     // Multi-selects
     entMulti = setupMultiSelect("#msEnterprise", (sel) => {
@@ -2056,9 +2409,18 @@
       renderDetail();
     });
 
+    // Rejected comments modal close button
+    $("#rejectedClose").addEventListener("click", closeRejectedModal);
+
+    // Close modal on backdrop click
+    $("#rejectedModal").addEventListener("click", (e) => {
+      if (e.target.id === "rejectedModal") closeRejectedModal();
+    });
+
     // Escape closes the detail panel
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && state.detail.card) selectCard(state.detail.card);
+      if (e.key === "Escape" && !$("#rejectedModal").hidden) closeRejectedModal();
     });
 
     // Initial pull
