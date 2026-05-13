@@ -22,6 +22,22 @@
     --shadow: 0 1px 0 rgba(22,20,15,.04), 0 8px 24px -12px rgba(22,20,15,.12);
   }
 
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a1a;
+      --paper: #2d2d2d;
+      --ink: #f5f5f5;
+      --ink-soft: #b8b8b8;
+      --ink-faint: #707070;
+      --rule: #3d3d3d;
+      --accent: #ff6b35;
+      --accent-soft: #3d2416;
+      --good: #2ecc71;
+      --warn: #e67e22;
+      --shadow: 0 1px 0 rgba(0,0,0,.2), 0 8px 24px -12px rgba(0,0,0,.4);
+    }
+  }
+
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body {
@@ -1560,46 +1576,51 @@
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     
-    // Get container width from parent
+    // Get container dimensions
     const container = canvas.parentElement;
-    const w = Math.max(container.offsetWidth - 8, 300); // -8 for padding, min 300
+    const w = Math.max(container.offsetWidth - 16, 300);
     const h = 280;
     
     canvas.width = w;
     canvas.height = h;
-    canvas.style.width = w + "px";
-    canvas.style.height = h + "px";
+
+    // Clear canvas
+    ctx.clearRect(0, 0, w, h);
 
     if (trends.length === 0) {
       ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--ink-faint");
-      ctx.font = "12px sans-serif";
+      ctx.font = "14px sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("No data", w / 2, h / 2);
+      ctx.fillText("No data for selected filters", w / 2, h / 2);
       return;
     }
 
-    const padding = { left: 50, right: 20, top: 20, bottom: 50 };
+    const padding = { left: 60, right: 30, top: 20, bottom: 60 };
     const plotW = w - padding.left - padding.right;
     const plotH = h - padding.top - padding.bottom;
 
-    // Compute scales
-    const xScale = plotW / Math.max(trends.length - 1, 1);
+    if (plotW < 50 || plotH < 50) return; // Not enough space
+
+    // Compute scales — handle all three lines
     const allValues = [];
     config.lines.forEach(line => {
       trends.forEach(t => {
         const v = line.getValue(t);
-        if (v !== null && v !== undefined && typeof v === "number") allValues.push(v);
+        if (typeof v === "number" && isFinite(v)) allValues.push(v);
       });
     });
-    const maxVal = Math.max(...allValues, 1);
-    const yScale = plotH / maxVal;
+    const maxVal = allValues.length > 0 ? Math.max(...allValues) : 100;
+    const minVal = 0;
+    const valRange = Math.max(maxVal - minVal, 1);
+    const xScale = plotW / Math.max(trends.length - 1, 1);
+    const yScale = plotH / valRange;
 
-    // Get CSS variables for colors
+    // Get CSS colors
     const ruleColor = getComputedStyle(document.documentElement).getPropertyValue("--rule").trim();
     const faintColor = getComputedStyle(document.documentElement).getPropertyValue("--ink-faint").trim();
     const softColor = getComputedStyle(document.documentElement).getPropertyValue("--ink-soft").trim();
 
-    // Draw grid + axes
+    // Draw background grid
     ctx.strokeStyle = ruleColor;
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 2]);
@@ -1614,7 +1635,7 @@
 
     // Draw axes
     ctx.strokeStyle = faintColor;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(padding.left, padding.top);
     ctx.lineTo(padding.left, h - padding.bottom);
@@ -1624,45 +1645,58 @@
     // Draw lines
     config.lines.forEach(line => {
       ctx.strokeStyle = line.color;
-      ctx.lineWidth = line.width || 2;
+      ctx.lineWidth = line.width || 2.5;
       ctx.setLineDash(line.dash || []);
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+
       ctx.beginPath();
       let first = true;
+      let pointCount = 0;
+
       trends.forEach((t, i) => {
         const v = line.getValue(t);
-        if (v === null || v === undefined) return;
+        if (typeof v !== "number" || !isFinite(v)) return;
+
         const x = padding.left + i * xScale;
-        const y = h - padding.bottom - (v * yScale);
+        const y = h - padding.bottom - ((v - minVal) * yScale);
+
         if (first) {
           ctx.moveTo(x, y);
           first = false;
         } else {
           ctx.lineTo(x, y);
         }
+        pointCount++;
       });
-      ctx.stroke();
+
+      if (pointCount > 0) {
+        ctx.stroke();
+      }
       ctx.setLineDash([]);
     });
 
-    // Draw date labels
+    // Draw X-axis date labels
     ctx.fillStyle = softColor;
     ctx.font = "11px 'JetBrains Mono', monospace";
     ctx.textAlign = "center";
-    const step = Math.max(1, Math.floor(trends.length / 8)); // max ~8 labels
+    ctx.textBaseline = "top";
+    const step = Math.max(1, Math.floor(trends.length / 6));
     trends.forEach((t, i) => {
       if (i % step !== 0 && i !== trends.length - 1) return;
       const x = padding.left + i * xScale;
-      const dateStr = t.date.substring(5); // YYYY-MM-DD → MM-DD
-      ctx.fillText(dateStr, x, h - 15);
+      const dateStr = t.date.substring(5); // MM-DD
+      ctx.fillText(dateStr, x, h - padding.bottom + 8);
     });
 
-    // Y-axis labels
+    // Draw Y-axis labels
     ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
     ctx.fillStyle = faintColor;
     for (let i = 0; i <= 5; i++) {
-      const y = padding.top + (plotH * i / 5);
-      const val = Math.round(maxVal * (5 - i) / 5);
-      ctx.fillText(fmt(val), padding.left - 12, y + 4);
+      const y = padding.top + (plotH * (5 - i) / 5);
+      const val = Math.round(minVal + valRange * i / 5);
+      ctx.fillText(fmt(val), padding.left - 10, y);
     }
   }
 
@@ -1671,27 +1705,30 @@
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     
-    // Get container width from parent
+    // Get container dimensions
     const container = canvas.parentElement;
-    const w = Math.max(container.offsetWidth - 8, 300);
+    const w = Math.max(container.offsetWidth - 16, 300);
     const h = 280;
     
     canvas.width = w;
     canvas.height = h;
-    canvas.style.width = w + "px";
-    canvas.style.height = h + "px";
+
+    // Clear canvas
+    ctx.clearRect(0, 0, w, h);
 
     if (trends.length === 0) {
       ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--ink-faint");
-      ctx.font = "12px sans-serif";
+      ctx.font = "14px sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("No data", w / 2, h / 2);
+      ctx.fillText("No data for selected filters", w / 2, h / 2);
       return;
     }
 
-    const padding = { left: 50, right: 20, top: 20, bottom: 50 };
+    const padding = { left: 60, right: 30, top: 20, bottom: 60 };
     const plotW = w - padding.left - padding.right;
     const plotH = h - padding.top - padding.bottom;
+
+    if (plotW < 50 || plotH < 50) return; // Not enough space
 
     // Get CSS colors
     const ruleColor = getComputedStyle(document.documentElement).getPropertyValue("--rule").trim();
@@ -1738,7 +1775,7 @@
 
     // Draw axes
     ctx.strokeStyle = faintColor;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(padding.left, padding.top);
     ctx.lineTo(padding.left, h - padding.bottom);
@@ -1781,21 +1818,23 @@
     ctx.fillStyle = softColor;
     ctx.font = "11px 'JetBrains Mono', monospace";
     ctx.textAlign = "center";
-    const step = Math.max(1, Math.floor(trends.length / 8));
+    ctx.textBaseline = "top";
+    const step = Math.max(1, Math.floor(trends.length / 6));
     trends.forEach((t, i) => {
       if (i % step !== 0 && i !== trends.length - 1) return;
       const x = padding.left + i * xScale;
       const dateStr = t.date.substring(5);
-      ctx.fillText(dateStr, x, h - 15);
+      ctx.fillText(dateStr, x, h - padding.bottom + 8);
     });
 
     // Y-axis labels
     ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
     ctx.fillStyle = faintColor;
     for (let i = 0; i <= 5; i++) {
-      const y = padding.top + (plotH * i / 5);
-      const val = Math.round(maxTotal * (5 - i) / 5);
-      ctx.fillText(fmt(val), padding.left - 12, y + 4);
+      const y = padding.top + (plotH * (5 - i) / 5);
+      const val = Math.round(maxTotal * i / 5);
+      ctx.fillText(fmt(val), padding.left - 10, y);
     }
   }
 
