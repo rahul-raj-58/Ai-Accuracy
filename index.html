@@ -1146,12 +1146,9 @@
   // ---------------- Fetch ----------------
   // Aggregated columns from the Metabase question.
   const FIELDS = [
-    // Aggregated KPI columns (from the aggregated Metabase query)
-    "createdDate", "enterprise_name", "account_type",
-    "unique_images", "unique_skus", "edited_images",
-    "sku_ids", "total_rows",
-    // Raw detail columns for rejected comments drill-down
-    "b.image_id", "rejected_comment", "image_action"
+    // Raw detail columns we need for rejected comments analysis
+    "b.image_id", "sku_id", "rejected_comment", "image_action",
+    "enterprise_name", "account_type", "createdDate"
   ];
 
   let loadProgressTimer = null;
@@ -2181,25 +2178,39 @@
 
   // ---- Rejected comments analysis ----
   function renderRejected() {
-    const filtered = state._filteredCache || [];
+    const filtered = state.records.filter(r => {
+      // Apply same filters as KPI cards
+      const ts = r._ts;
+      const [fromTs, toTs] = rangeForPreset(state.filters.datePreset, state.filters.from, state.filters.to);
+      if (fromTs !== null || toTs !== null) {
+        if (!ts || isNaN(ts)) return false;
+        if (fromTs !== null && ts < fromTs) return false;
+        if (toTs   !== null && ts > toTs)   return false;
+      }
+      if (state.filters.enterprises.size > 0 && !state.filters.enterprises.has(r.enterprise_name)) return false;
+      if (state.filters.accounts.size > 0 && !state.filters.accounts.has(r.account_type)) return false;
+      return true;
+    });
+
     if (filtered.length === 0) {
       $("#rejectedSection").hidden = true;
       return;
     }
 
     // Count rejected comments from raw data
-    const rejectedMap = new Map(); // comment -> count
-    for (const r of state.records) {
-      // Apply same filters as KPI cards
-      const dateObj = getDateFromRecord(r);
-      if (!isDateInRange(dateObj)) continue;
-      if (state.filters.enterprises.size > 0 && !state.filters.enterprises.has(r.enterprise_name)) continue;
-      if (state.filters.accounts.size > 0 && !state.filters.accounts.has(r.account_type)) continue;
-
+    const rejectedMap = new Map(); // comment -> { count, images: Set }
+    for (const r of filtered) {
       const comment = (r.rejected_comment || "").trim();
-      if (comment && comment.toLowerCase() !== "null") {
-        rejectedMap.set(comment, (rejectedMap.get(comment) || 0) + 1);
+      if (!comment || comment.toLowerCase() === "null") continue;
+
+      if (!rejectedMap.has(comment)) {
+        rejectedMap.set(comment, { count: 0, images: new Set() });
       }
+      const bucket = rejectedMap.get(comment);
+      bucket.count++;
+      
+      const imgId = (r["b.image_id"] || "").trim();
+      if (imgId) bucket.images.add(imgId);
     }
 
     if (rejectedMap.size === 0) {
@@ -2209,17 +2220,19 @@
 
     $("#rejectedSection").hidden = false;
 
-    // Sort by count descending
-    const sorted = [...rejectedMap.entries()].sort((a, b) => b[1] - a[1]);
+    // Top 15 by count
+    const sorted = [...rejectedMap.entries()]
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 15);
 
     // Render list
-    const html = sorted.map(([comment, count]) => `
+    const html = sorted.map(([comment, data]) => `
       <div class="rejected-item" data-comment="${escapeHtml(comment)}">
         <div class="rejected-item-left">
           <div class="rejected-item-text">${escapeHtml(comment)}</div>
-          <div class="rejected-item-count">${count} rejection${count === 1 ? "" : "s"}</div>
+          <div class="rejected-item-count">${data.count} rejection${data.count === 1 ? "" : "s"} · ${data.images.size} image${data.images.size === 1 ? "" : "s"}</div>
         </div>
-        <div class="rejected-item-badge">${count}</div>
+        <div class="rejected-item-badge">${data.count}</div>
       </div>
     `).join("");
 
@@ -2229,35 +2242,36 @@
     document.querySelectorAll(".rejected-item").forEach(el => {
       el.addEventListener("click", () => {
         const comment = el.dataset.comment;
-        showRejectedModal(comment);
+        showRejectedModal(comment, filtered);
       });
     });
   }
 
-  function showRejectedModal(selectedComment) {
+  function showRejectedModal(selectedComment, allFiltered) {
     // Build drill-down data by enterprise
-    const byEnterprise = new Map(); // enterprise -> { edited_images: Set, total: int }
+    const byEnterprise = new Map(); // enterprise -> { edited_images: Set, images: Set, total: int }
 
-    for (const r of state.records) {
-      const dateObj = getDateFromRecord(r);
-      if (!isDateInRange(dateObj)) continue;
-      if (state.filters.enterprises.size > 0 && !state.filters.enterprises.has(r.enterprise_name)) continue;
-      if (state.filters.accounts.size > 0 && !state.filters.accounts.has(r.account_type)) continue;
-
+    for (const r of allFiltered) {
       const comment = (r.rejected_comment || "").trim();
       if (comment !== selectedComment) continue;
 
       const ent = (r.enterprise_name || "").trim() || "(empty)";
       let bucket = byEnterprise.get(ent);
       if (!bucket) {
-        bucket = { enterprise: ent, account_type: (r.account_type || "").trim() || "—", edited_images: new Set(), image_ids: new Set(), total: 0 };
+        bucket = { 
+          enterprise: ent, 
+          account_type: (r.account_type || "").trim() || "—", 
+          edited_images: new Set(), 
+          all_images: new Set(), 
+          total: 0 
+        };
         byEnterprise.set(ent, bucket);
       }
 
       const imgId = (r["b.image_id"] || "").trim();
       const isEdited = (r.image_action || "").trim();
       if (imgId) {
-        bucket.image_ids.add(imgId);
+        bucket.all_images.add(imgId);
         if (isEdited && isEdited.toLowerCase() !== "null") {
           bucket.edited_images.add(imgId);
         }
@@ -2269,14 +2283,14 @@
     const rows = [...byEnterprise.values()].sort((a, b) => b.total - a.total).map(bucket => ({
       enterprise: bucket.enterprise,
       account_type: bucket.account_type,
-      total_images: bucket.image_ids.size,
+      total_images: bucket.all_images.size,
       edited_count: bucket.edited_images.size,
       rejections: bucket.total,
-      edited_images_list: [...bucket.edited_images].join(", ")
+      edited_image_ids: [...bucket.edited_images].slice(0, 5).join(", ") + (bucket.edited_images.size > 5 ? ` +${bucket.edited_images.size - 5} more` : "")
     }));
 
     // Render modal
-    $("#rejectedModalTitle").textContent = `Rejections for: ${selectedComment}`;
+    $("#rejectedModalTitle").textContent = `Rejections: ${selectedComment}`;
 
     const thead = document.querySelector(".rejected-modal-table thead");
     thead.innerHTML = `<tr>
@@ -2285,6 +2299,7 @@
       <th class="num">Total Images</th>
       <th class="num">Edited</th>
       <th class="num">Rejections</th>
+      <th>Edited Image IDs</th>
     </tr>`;
 
     const tbody = document.querySelector(".rejected-modal-table tbody");
@@ -2294,9 +2309,10 @@
       <td class="num">${fmt(r.total_images)}</td>
       <td class="num">${fmt(r.edited_count)}</td>
       <td class="num">${fmt(r.rejections)}</td>
+      <td><code style="font-size:11px;color:var(--ink-faint);">${escapeHtml(r.edited_image_ids)}</code></td>
     </tr>`).join("");
 
-    tbody.innerHTML = tableHTML || `<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--ink-faint);">No data</td></tr>`;
+    tbody.innerHTML = tableHTML || `<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--ink-faint);">No data</td></tr>`;
 
     const totalRejections = rows.reduce((s, r) => s + r.rejections, 0);
     const totalImages = rows.reduce((s, r) => s + r.total_images, 0);
@@ -2305,7 +2321,7 @@
     $("#rejectedModalFoot").innerHTML = `
       <div style="display: flex; justify-content: space-between;">
         <span><strong>${fmt(rows.length)}</strong> enterprises · <strong>${fmt(totalImages)}</strong> images · <strong>${fmt(totalEdited)}</strong> edited</span>
-        <span><strong>${fmt(totalRejections)}</strong> rejections for this comment</span>
+        <span><strong>${fmt(totalRejections)}</strong> total rejections</span>
       </div>
     `;
 
