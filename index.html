@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500;600&family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <style>
+  /* Light theme (default) */
   :root {
     --bg: #f5f3ee;
     --paper: #ffffff;
@@ -22,8 +23,24 @@
     --shadow: 0 1px 0 rgba(22,20,15,.04), 0 8px 24px -12px rgba(22,20,15,.12);
   }
 
+  /* Dark theme */
+  html[data-theme="dark"] {
+    --bg: #1a1a1a;
+    --paper: #2d2d2d;
+    --ink: #f5f5f5;
+    --ink-soft: #b8b8b8;
+    --ink-faint: #707070;
+    --rule: #3d3d3d;
+    --accent: #ff6b35;
+    --accent-soft: #3d2416;
+    --good: #2ecc71;
+    --warn: #e67e22;
+    --shadow: 0 1px 0 rgba(0,0,0,.2), 0 8px 24px -12px rgba(0,0,0,.4);
+  }
+
+  /* Also respond to system preference if no data-theme is set */
   @media (prefers-color-scheme: dark) {
-    :root {
+    html:not([data-theme]) {
       --bg: #1a1a1a;
       --paper: #2d2d2d;
       --ink: #f5f5f5;
@@ -639,11 +656,21 @@
     font-size: 13px;
     display: none;
   }
+  html[data-theme="dark"] .err {
+    background: #3d2416;
+    color: #ff9666;
+    border-color: #5d3d2d;
+  }
   .err.show { display: block; }
   .err.info {
     background: #eef4f9;
     color: #244a73;
     border-color: #c7d9ea;
+  }
+  html[data-theme="dark"] .err.info {
+    background: #1a3a52;
+    color: #66b8ff;
+    border-color: #2d4a6d;
   }
 
   /* ---------- Responsive ---------- */
@@ -774,7 +801,7 @@
       <span class="kpi-hint">click to break down</span>
     </button>
     <button type="button" class="kpi k4 loading" data-card="edited" aria-pressed="false">
-      <div class="kpi-label">Edited images <span style="color:var(--ink-faint);font-weight:400">· image_action ≠ ∅</span></div>
+      <div class="kpi-label">AI Accuracy <span style="color:var(--ink-faint);font-weight:400">· 100 - edit%</span></div>
       <div class="kpi-value" id="kEdit">—</div>
       <div class="kpi-sub" id="kEditSub">awaiting data…</div>
       <div class="kpi-bar"></div>
@@ -1242,7 +1269,8 @@
     setKpi("kImg",  totalImages,   `from ${fmt(totalRowsFiltered)} raw rows`);
     setKpi("kSku",  skuUnion.size, `unique across all buckets`);
     const editPct = totalImages > 0 ? ((totalEdited / totalImages) * 100).toFixed(1) : "0.0";
-    setKpi("kEdit", totalEdited, `${editPct}% of unique images`);
+    const aiAccuracy = totalImages > 0 ? (100 - parseFloat(editPct)).toFixed(1) : "100.0";
+    setKpi("kEdit", parseFloat(aiAccuracy), `${aiAccuracy}% images need no edits`);
 
     // Stash filtered set so detail panel can reuse without recomputing the filter pass.
     state._filteredCache = filtered;
@@ -1973,20 +2001,26 @@
     const themeBtn = $("#themeBtn");
     const sunIcon = themeBtn.querySelector(".theme-icon-sun");
     const moonIcon = themeBtn.querySelector(".theme-icon-moon");
+    const htmlEl = document.documentElement;
     
     // Check if user has saved preference or use system preference
     const savedTheme = localStorage.getItem("theme");
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const isDark = savedTheme ? savedTheme === "dark" : prefersDark;
+    let isDark = false;
+    
+    if (savedTheme) {
+      isDark = savedTheme === "dark";
+    } else {
+      isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    }
     
     function applyTheme(dark) {
       if (dark) {
-        document.documentElement.style.colorScheme = "dark";
+        htmlEl.setAttribute("data-theme", "dark");
         sunIcon.style.display = "none";
         moonIcon.style.display = "block";
         localStorage.setItem("theme", "dark");
       } else {
-        document.documentElement.style.colorScheme = "light";
+        htmlEl.removeAttribute("data-theme");
         sunIcon.style.display = "block";
         moonIcon.style.display = "none";
         localStorage.setItem("theme", "light");
@@ -1998,10 +2032,10 @@
     
     // Toggle on button click
     themeBtn.addEventListener("click", () => {
-      const isCurrent = document.documentElement.style.colorScheme === "dark";
-      applyTheme(!isCurrent);
-      // Re-render charts since colors changed
-      renderTrends();
+      const isDarkNow = htmlEl.getAttribute("data-theme") === "dark";
+      applyTheme(!isDarkNow);
+      // Re-render charts with new colors
+      setTimeout(() => renderTrends(), 50);
     });
 
     // KPI cards — clickable drill-down
