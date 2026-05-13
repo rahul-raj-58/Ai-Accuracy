@@ -1146,9 +1146,11 @@
   // ---------------- Fetch ----------------
   // Aggregated columns from the Metabase question.
   const FIELDS = [
-    // Raw detail columns we need for rejected comments analysis
-    "b.image_id", "sku_id", "rejected_comment", "image_action",
-    "enterprise_name", "account_type", "createdDate"
+    // Aggregated data columns (pre-computed by Metabase)
+    "createdDate", "enterprise_name", "account_type",
+    "unique_images", "unique_skus", "edited_images", "sku_ids",
+    // Raw detail columns for rejected comments analysis
+    "b.image_id", "rejected_comment", "image_action", "sku_id"
   ];
 
   let loadProgressTimer = null;
@@ -1444,41 +1446,37 @@
       return true;
     });
 
-    // ---- KPI computation on RAW records ----
-    // Each row is one raw image record; we need to deduplicate
+    // ---- KPI computation on AGGREGATED rows ----
+    // Each row is one (date, enterprise, account_type) bucket containing:
+    //   unique_images : count of image_ids in this bucket (image_id is globally unique → safe to sum)
+    //   unique_skus   : count of sku_ids in this bucket (sku_ids span buckets → NOT safe to sum, need to union)
+    //   edited_images : count of edited image_ids in this bucket (safe to sum, same reason as images)
+
+    let totalImages = 0;
+    let totalEdited = 0;
     const uniqEnt = new Set();
-    const uniqImg = new Set();
-    const uniqSku = new Set();
-    const uniqEdit = new Set();
+    const skuUnion = new Set();
 
     for (const r of filtered) {
-      // Enterprise
       const ent = (r.enterprise_name || "").trim();
       if (ent) uniqEnt.add(ent);
 
-      // Image ID (globally unique)
-      const imgId = (r["b.image_id"] || "").trim();
-      if (imgId) {
-        uniqImg.add(imgId);
-        
-        // Track edited images
-        const action = (r.image_action || "").trim();
-        const isNull = !action || action.toLowerCase() === "null";
-        if (!isNull) {
-          uniqEdit.add(imgId);
-        }
-      }
+      totalImages += toInt(r.unique_images);
+      totalEdited += toInt(r.edited_images);
 
-      // SKU ID
-      const skuId = (r.sku_id || "").trim();
-      if (skuId) uniqSku.add(skuId);
+      // Union the per-bucket sku arrays for an exact distinct count.
+      const skuField = r.sku_ids;
+      if (skuField) {
+        const list = parseSkuArray(skuField);
+        for (const s of list) if (s) skuUnion.add(s);
+      }
     }
 
-    setKpi("kEnt",  uniqEnt.size,  `from ${fmt(filtered.length)} rows`);
-    setKpi("kImg",  uniqImg.size,  `from ${fmt(filtered.length)} rows`);
-    setKpi("kSku",  uniqSku.size,  `from ${fmt(filtered.length)} rows`);
-    const editPct = uniqImg.size > 0 ? ((uniqEdit.size / uniqImg.size) * 100).toFixed(1) : "0.0";
-    const aiAccuracy = uniqImg.size > 0 ? (100 - parseFloat(editPct)).toFixed(1) : "100.0";
+    setKpi("kEnt",  uniqEnt.size,  `across ${fmt(filtered.length)} buckets`);
+    setKpi("kImg",  totalImages,   `from aggregated data`);
+    setKpi("kSku",  skuUnion.size, `unique across all buckets`);
+    const editPct = totalImages > 0 ? ((totalEdited / totalImages) * 100).toFixed(1) : "0.0";
+    const aiAccuracy = totalImages > 0 ? (100 - parseFloat(editPct)).toFixed(1) : "100.0";
     setKpi("kEdit", parseFloat(aiAccuracy), `${aiAccuracy}% images need no edits`);
 
     // Stash filtered set so detail panel can reuse without recomputing the filter pass.
@@ -1812,69 +1810,39 @@
   // ---------------- Trend lines ----------------
 
   function buildTrendData(filtered) {
-    // Group by createdDate, compute per-date metrics from raw records
+    // Group by createdDate, compute per-date metrics from aggregated data
     const byDate = new Map();
-    
     for (const r of filtered) {
       const d = (r.createdDate || "").trim();
       if (!d) continue;
-      
       let bucket = byDate.get(d);
       if (!bucket) {
         bucket = {
           date: d,
-          images: new Set(),    // unique image IDs
-          edited: new Set(),    // unique edited image IDs
-          byAccount: new Map(), // account_type -> { images: Set, edited: Set }
+          images: 0,
+          edited: 0,
+          byAccount: new Map(), // account_type -> { images, edited }
         };
         byDate.set(d, bucket);
       }
       
-      // Add image ID
-      const imgId = (r["b.image_id"] || "").trim();
-      if (imgId) {
-        bucket.images.add(imgId);
-        
-        // Check if edited
-        const action = (r.image_action || "").trim();
-        const isNull = !action || action.toLowerCase() === "null";
-        if (!isNull) {
-          bucket.edited.add(imgId);
-        }
-      }
+      // Sum the aggregated counts
+      bucket.images += toInt(r.unique_images);
+      bucket.edited += toInt(r.edited_images);
 
-      // Track by account type
       const acct = (r.account_type || "").trim() || "—";
       let ab = bucket.byAccount.get(acct);
       if (!ab) {
-        ab = { images: new Set(), edited: new Set() };
+        ab = { images: 0, edited: 0 };
         bucket.byAccount.set(acct, ab);
       }
-      if (imgId) {
-        ab.images.add(imgId);
-        const action = (r.image_action || "").trim();
-        const isNull = !action || action.toLowerCase() === "null";
-        if (!isNull) {
-          ab.edited.add(imgId);
-        }
-      }
+      ab.images += toInt(r.unique_images);
+      ab.edited += toInt(r.edited_images);
     }
 
-    // Convert sets to counts and sort by date
+    // Sort by date
     const dates = [...byDate.keys()].sort();
-    const trends = dates.map(d => {
-      const bucket = byDate.get(d);
-      const byAccountCounts = new Map();
-      for (const [acct, ab] of bucket.byAccount) {
-        byAccountCounts.set(acct, { images: ab.images.size, edited: ab.edited.size });
-      }
-      return {
-        date: d,
-        images: bucket.images.size,
-        edited: bucket.edited.size,
-        byAccount: byAccountCounts,
-      };
-    });
+    const trends = dates.map(d => byDate.get(d));
 
     return trends;
   }
